@@ -4,7 +4,8 @@
 # Data
 .env
 chroma_db/
-raw_data/
+testing_data/
+data/
 article_content.json
 article_list.json
 ready_data.csv
