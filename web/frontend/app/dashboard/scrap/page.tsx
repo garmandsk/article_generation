@@ -1,4 +1,4 @@
-export default function ClusterPage() {
+  export default function ClusterPage() {
   return (
     // Card besar untuk meniru area konten
     <div className="bg-[#002642]/30 border border-slate-700/50 rounded-xl p-8 min-h-[500px] flex flex-col items-center justify-center">

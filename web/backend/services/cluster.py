@@ -10,7 +10,9 @@ from bertopic.vectorizers import ClassTfidfTransformer
 from bertopic.representation import MaximalMarginalRelevance, KeyBERTInspired
 from bertopic import BERTopic
 from config import settings
-from utils import save_to_json, get_from_json, save_to_chromadb, get_from_chromadb
+from utils import save_to_json, get_from_chromadb # Opsional jika frontend masih butuh file ini
+from config.database import SessionLocal
+from models.models import Article
 
 def embedding_model_prep(model_name, token):
     embedding_model = SentenceTransformer(
@@ -75,30 +77,23 @@ def extract_info_cluster(raw_text):
 
 def cluster_articles(payload, token):
     print("📦 Menarik Vektor dari Database Lokal...")
-    
-    data_list = get_from_json(settings.FILE_LIST_PATH)
-    total_data_list = len(data_list)
-
-    data_content = get_from_json(settings.FILE_CONTENT_PATH)
-    total_data_content = len(data_content)
 
     collection = get_from_chromadb(settings.DB_PATH, settings.DB_NAME)
-    total_data_db = collection.count()
-
-    # Jika total data db dan content tidak sama maka disamakan dulu sebelum clustering
-    if total_data_db != total_data_content or total_data_db != total_data_list:
-        print("Terdapat kesenjangan antara data content dan chromadb")
-        print(f"Total data content: {total_data_content}")
-        print(f"Total data ChromaDB: {total_data_db}")
-        save_to_chromadb(token, data_content)
     
-    print("Memulai clustering")
-    
-    data_db = collection.get(include=['embeddings', 'documents', 'metadatas'])
+    chroma_db = collection.get(include=['embeddings', 'documents'])
 
-    docs = data_db['documents']
-    embedding_vectors = data_db['embeddings']
-    metadatas = data_db['metadatas']
+    chroma_ids = chroma_db["ids"]
+    docs = chroma_db['documents']
+    embedding_vectors = chroma_db['embeddings']
+
+    if not chroma_ids:
+        return {
+            "status_code": 400,
+            "status": "fail",
+            "message": "ChromaDB kosong! Pastikan scraper sudah berjalan dan vektorisasi sukses."
+        }
+
+    print("🚀 Memulai proses clustering model BERTopic...")
 
     # Persiapan Stopwords
     nltk.download('stopwords', quiet=True)
@@ -151,79 +146,120 @@ def cluster_articles(payload, token):
         embeddings=embedding_vectors
     )
 
-    # Preprocess data hasil cluster
-    df_raw = pd.DataFrame(metadatas)
+    # == Menggabungkan Hasil cluster dengan pgsql ==
+    print("🔄 Menyinkronkan hasil AI dengan database PostgreSQL...")
 
-    # Penambahan data hasil clustering dataframe
-    df_raw["article_text"] = docs
-    df_raw["id_topic"] = topic
+    pg_db = SessionLocal()
+    try:
+        pg_db_articles = pg_db.query(Article).filter(Article.id.in_(chroma_ids)).all()
+        article_map = {
+            art.id: {
+                "id_inc": art.id_inc,
+                "slug": art.slug,
+                "title": art.title
+            }
+            for art in pg_db_articles
+        }
 
-    mapping_topic_name = topic_model.get_topic_info().set_index("Topic")["Name"].to_dict()
-    df_raw["name_topic"] = df_raw["id_topic"].map(mapping_topic_name)
+        # Susun metadata sesuai dengan urutan list "chroma_ids"
+        mapped_metada = [article_map.get(cid, {}) for cid in chroma_ids]
 
-    df_raw["skor_cf"] = probabilities
+        # Buat dataframe dari metadata barusan
+        df_raw = pd.DataFrame(mapped_metada)
 
-    # Filtering
-    df_clean = df_raw[
-        (df_raw["id_topic"] != -1) & 
-        (df_raw["skor_cf"] >= min_cf_range)
-    ]
+        # Masukkan hasil clustering
+        df_raw["id"] = chroma_ids
+        df_raw["article_text"] = docs
+        df_raw["id_topic"] = topic
+        df_raw["skor_cf"] = probabilities
 
-    print(f"Total Artikel Awal: {len(df_raw)}")
-    print(f"Total Artikel Setelah Filtering (>{min_cf_range*100}% Yakin): {len(df_clean)}") 
+        mapping_topic_name = topic_model.get_topic_info().set_index("Topic")["Name"].to_dict()
+        df_raw["name_topic"] = df_raw["id_topic"].map(mapping_topic_name)
 
-    # Sorting Ascending berdasarkan jumlah artikel suatu topik
-    df_article_topic = df_clean["name_topic"].value_counts().reset_index()
-    df_article_topic.columns = ["name_topic", "article_count"]
-    df_article_topic_ascending = df_article_topic.sort_values(by="article_count", ascending=True)
+        # Filtering
+        df_clean = df_raw[
+            (df_raw["id_topic"] != -1) &
+            (df_raw["skor_cf"] >= min_cf_range)
+        ]
 
-    df_recommend = df_article_topic_ascending.head(recommend_targets)
+        print(f"Total Artikel Awal: {len(df_raw)}")
+        print(f"Total Artikel Setelah Filtering (>{min_cf_range*100}% Yakin): {len(df_clean)}")
 
-    recommend_cluster_ids = []
-    for text in df_recommend["name_topic"]:
-        cid, _, _ = extract_info_cluster(text)
-        recommend_cluster_ids.append(cid)
+        df_article_topic = df_clean["name_topic"].value_counts().reset_index()
+        df_article_topic.columns = ["name_topic", "article_count"]
+        df_article_topic_ascending = df_article_topic.sort_values(by="article_count", ascending=True)
 
-    final_cluster_list = []
-    for index, row in df_article_topic_ascending.iterrows():
-        text = row["name_topic"]
-        article_count = row["article_count"]
+        df_recommend = df_article_topic_ascending.head(recommend_targets)
 
-        cid, cname, ckeywords = extract_info_cluster(text)
+        recommend_cluster_ids = []
+        for text in df_recommend["name_topic"]:
+            cid, _, _ = extract_info_cluster(text)
+            recommend_cluster_ids.append(cid)
 
-        recommend_status = cid in recommend_cluster_ids
+        # Menyimpan hasil clustering
+        print("💾 Menyimpan label cluster ke PostgreSQL...")
 
-        final_cluster_list.append({
-            "cluster_id": cid,
-            "cluster_name": cname,
-            "cluster_keywords": ckeywords,
-            "article_count": article_count,
-            "is_recommended": recommend_status
-        })
+        pg_db.query(Article).update({"is_recommended": False})
 
-    # Sorting list cluster berdasarkan index secara ascending
-    final_cluster_list = sorted(final_cluster_list, key=lambda x: x["cluster_id"])
+        # Update nilai kolom 'cluster_topic' untuk setiap artikel yang lulus filter
+        for index, row in df_clean.iterrows():
+            article_id = str(row["id"])
+            topic_text = str(row["name_topic"])
 
-    # Susun output json
-    data_cluster_final = {
-        "metadatas": {
-            "total_clusters" : len(final_cluster_list),
-            "total_recommended": len(recommend_cluster_ids),
-            "raw_total_article": len(df_raw),
-            "filtered_total_articles": len(df_clean),
-            "min_cf_range": min_cf_range
-        },
-        "clusters": final_cluster_list
-    }
+            # Ekstrak id, nama, dan keywords setiap cluster
+            cid, cname, ckeywords = extract_info_cluster(topic_text)
+            recommend_status = bool(cid in recommend_cluster_ids)
 
-    save_to_json(settings.FILE_TOPIC_DATA_PATH, data_cluster_final)
+            pg_db.query(Article).filter(Article.id == article_id).update({
+                "cluster_topic": cname,
+                "cluster_keywords": ckeywords,
+                "is_recommended": recommend_status
+            })
 
-    # Kirim hasil cluster
-    data = {
-        "status_code": 200,
-        "status": "success",
-        "message": "Clustering selesai",
-        "data": data_cluster_final
-    }
+        pg_db.commit()
+        print("✅ Database PostgreSQL berhasil diperbarui sepenuhnya.")
 
-    return data
+        final_cluster_list = []
+        for index, row in df_article_topic_ascending.iterrows():
+            text = str(row["name_topic"])
+            article_count = int(row["article_count"])
+            cid, cname, ckeywords = extract_info_cluster(text)
+            recommend_status = bool(cid in recommend_cluster_ids)
+
+            final_cluster_list.append({
+                "cluster_id": cid,
+                "cluster_name": cname,
+                "cluster_keywords": ckeywords,
+                "article_count": article_count,
+                "is_recommended": recommend_status
+            })
+
+        # Sorting list cluster berdasarkan index secara ascending
+        final_cluster_list = sorted(final_cluster_list, key=lambda x: x["cluster_id"])
+
+        return {
+            "status_code": 200,
+            "status": "success",
+            "message": "Clustering selesai dan seluruh state disimpan di PostgreSQL.",
+            "data": {
+                "metadatas": {
+                    "total_cluster": len(final_cluster_list),
+                    "total_recommended": len(recommend_cluster_ids),
+                    "raw_total_article": len(df_raw),
+                    "filltered_total_article": len(df_clean),
+                    "min_cf_range": min_cf_range
+                },
+                "cluster": final_cluster_list
+            }
+        }
+    
+    except Exception as e:
+        pg_db.rollback()
+        print(f"❌ Gagal menyinkronkan dengan PostgreSQL: {e}")
+        return {
+            "status_code": 500,
+            "status": "error",
+            "message": f"Gagal memproses clustering: {str(e)}"
+        }
+    finally:
+        pg_db.close()

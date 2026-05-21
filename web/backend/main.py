@@ -19,6 +19,12 @@ from utils import get_from_json, get_from_chromadb, save_to_chromadb
 from config import settings
 from datetime import datetime, timedelta
 from jose import jwt
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+from fastapi import Depends
+# Pastikan jalur import ini sesuai dengan struktur foldermu
+from config.database import get_db 
+from models.models import Article
 
 app = FastAPI()
 app.add_middleware(
@@ -164,44 +170,48 @@ def logout_app(
 # Data keseluruhan
 @app.get("/api/v1/data/stats")
 def data_stats(
-    token: str = Depends(get_mydigilearn_token)
+    token: str = Depends(get_mydigilearn_token),
+    db: Session = Depends(get_db) 
 ):  
-    # == Data Scrap ==
-    print("== Mengambil data scrap ==")
+    print("== Mengambil Statistik Dashboard dari PostgreSQL ==")
     
-    # Data list
-    print("Mengambil data list")
-    data_list_article = get_from_json(settings.FILE_LIST_PATH)
-
-    # Data content
-    print("Mengambil data content")
-    data_content_article = get_from_json(settings.FILE_CONTENT_PATH)
-
-    # Database chromadb
-    print("Mengambil database chromadb")
-    collection = get_from_chromadb(settings.DB_PATH, settings.DB_NAME)
+    # == DATA SCRAP ==
+    # Total semua data yang pernah ditarik slug-nya
+    total_data_list = db.query(Article).count()
     
-    # == Data Cluster/Topic ==
-    print("== Mengambil data Cluster/Topic ==")
-    data_topics = get_from_json(settings.FILE_TOPIC_DATA_PATH)
-    metadatas_topics = data_topics["metadatas"]
-    total_data_topic = metadatas_topics["total_clusters"]
-    total_data_rec_topic = metadatas_topics["total_recommended"]
+    # Total data yang sudah punya konten (statusnya BUKAN slug_only)
+    total_data_content = db.query(Article).filter(Article.status != "slug_only").count()
+    
+    # Total data di ChromaDB. 
+    # Alih-alih memanggil ChromaDB yang memakan waktu, kita baca dari status sinkronisasi Postgres!
+    total_data_db = db.query(Article).filter(
+        Article.status.in_(["vectorized", "clustered", "generated"])
+    ).count()
 
-    # == Data Generate ==
-    print("== Mengambil data generate ==")
-    data_generate = get_from_json(settings.FILE_METADATA_GENERATED_ARTICLE_PATH)
-    total_data_generate = data_generate["total_generated_article"]
+    # == DATA CLUSTER / TOPIC == 
+    # Hitung jumlah topik unik (distinct) yang tidak kosong
+    total_data_topic = db.query(Article.cluster_topic).filter(
+        Article.cluster_topic.isnot(None)
+    ).distinct().count()
+    
+    # Hitung jumlah topik unik (distinct) yang berstatus direkomendasikan
+    total_data_rec_topic = db.query(Article.cluster_topic).filter(
+        Article.is_recommended == True
+    ).distinct().count()
+
+    # == DATA GENERATE ==
+    # Asumsi: jika ada artikel yang sudah di-generate AI, statusnya berubah menjadi 'generated'
+    total_data_generate = db.query(Article).filter(Article.status == "generated").count()
 
     return {
         "status_code": 200,
         "status": "success",
-        "message": "data keseluruhan berhasil diambil",
+        "message": "Data statistik keseluruhan berhasil diambil secara instan",
         "data": {
             "scrap": {
-                "total_data_list": len(data_list_article),
-                "total_data_content": len(data_content_article),
-                "total_data_db": collection.count()
+                "total_data_list": total_data_list,
+                "total_data_content": total_data_content,
+                "total_data_db": total_data_db
             },
             "cluster": {
                 "total_data_topic": total_data_topic,
@@ -215,6 +225,44 @@ def data_stats(
         }
     }
     
+# Scraping
+@app.post("/api/v1/run/scrap/articles")
+# Cookie, query param
+async def run_scrap_articles(
+    token: str = Depends(get_mydigilearn_token), 
+    mode: str = Query("both"),
+    max_scrap: int = Query(10),
+    overlap_limit: int = Query(10),
+    page: int = Query(1),
+    limit_article_per_page: int = Query(10)
+):  
+    print(f"max_scrap dari query: {max_scrap}")
+    response = await scrap_articles(token, mode, max_scrap, overlap_limit, page, limit_article_per_page)
+    return response
+
+
+# Clustering
+@app.post("/api/v1/run/cluster")
+# Cookie
+def run_cluster(
+    payload: ClusteringPayload,
+    token: str = Depends(get_mydigilearn_token)
+):
+    print(f"Payload clustering: \n{payload}")
+    response = cluster_articles(payload, token)
+    return response
+
+# Generating
+@app.post("/api/v1/run/generate")
+# Cookie
+async def run_generate(
+    payload: GenerationPayload,
+    token: str = Depends(get_mydigilearn_token),
+):
+    response = await generate_article(payload.selected_topics, payload.keywords, payload.prompt, payload.model, payload.model_api_key)
+    return response
+
+# ==================
 # Data Articles
 @app.get("/api/v1/data/articles")
 # Cookie
@@ -311,18 +359,6 @@ def sync_db(token: str = Depends(get_mydigilearn_token)):
         }
     }
 
-# Scraping
-@app.post("/api/v1/run/scrap/articles")
-# Cookie, query param
-async def run_scrap_articles(
-    token: str = Depends(get_mydigilearn_token), 
-    mode: str = Query("both"),
-    max_scrap: int = Query(10),
-):  
-    print(f"max_scrap dari query: {max_scrap}")
-    response = await scrap_articles(token, mode, max_scrap)
-    return response
-
 @app.post("/api/v1/run/scrap/list")
 # Cookie, query param
 async def run_scrap_list_articles(
@@ -343,25 +379,4 @@ def run_scrap_content_articles(
     headers = settings.BASE_HEADERS.copy()
     headers["Authorization"] = f"Bearer {token}"
     response = scrap_content_articles(headers, max_scrap)
-    return response
-
-# Clustering
-@app.post("/api/v1/run/cluster")
-# Cookie
-def run_cluster(
-    payload: ClusteringPayload,
-    token: str = Depends(get_mydigilearn_token)
-):
-    print(f"Payload clustering: \n{payload}")
-    response = cluster_articles(payload, token)
-    return response
-
-# Generating
-@app.post("/api/v1/run/generate")
-# Cookie
-async def run_generate(
-    payload: GenerationPayload,
-    token: str = Depends(get_mydigilearn_token),
-):
-    response = await generate_article(payload.selected_topics, payload.keywords, payload.prompt, payload.model, payload.model_api_key)
     return response

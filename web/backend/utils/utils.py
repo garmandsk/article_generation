@@ -75,39 +75,44 @@ def get_from_chromadb(db_path, db_name):
 
     return collection
 
-def save_to_chromadb(token, data_content):
-    print("Pengecekan total data konten dan list")
-    data_list = get_from_json(settings.FILE_LIST_PATH)
-    total_data_list = len(data_list)
-    total_data_content = len(data_content)
-
-    if total_data_content != total_data_list:
-        from services import scrap_content_articles
-
-        print("Terdapat kesenjangan data antara data list dan content")
-        print(f"total data list: {total_data_list}")
-        print(f"total data content: {total_data_content}")
-
-        headers = settings.BASE_HEADERS.copy()
-        headers["Authorization"] = f"Bearer {token}"
-        selisih = total_data_list - total_data_content
-
-        scrap_content_articles(headers, selisih)
-        data_content = get_from_json(settings.FILE_CONTENT_PATH)
-        
-    df = pd.DataFrame(data_content)
+def save_to_chromadb(token, data_to_sync):
+    if not data_to_sync:
+        print("✨ Tidak ada artikel baru. ChromaDB dan PostgreSQL sudah sinkron!")
+        return
+    
+    print(f"🚀 Memulai Preprocessing {len(data_to_sync)} artikel untuk ChromaDB...")
+    
+    df = pd.DataFrame(data_to_sync)
     print("🚀 Memulai Preprocessing data content untuk disimpan di ChromaDB...")
+    
+    # Clear html
     df['clean_content'] = df['content'].apply(clear_html)
-    df['tags_string'] = df['tags'].apply(lambda x: " ".join(x) if isinstance(x, list) else "")
+    
+    # Menggabungkan tags
+    if 'tags' in df.columns:
+        df['tags_string'] = df['tags'].apply(lambda x: " ".join(x) if isinstance(x, list) else "")
+    else:
+        df['tags_string'] = ""
+
+    # Menggabungkan data title, content, dan tags
     df['complete_data'] = df['title'] + " " + df['tags_string'] + " " + df['clean_content']
+
+    # Menormalisasikan data
     df['ready_data'] = df['complete_data'].apply(text_normalization)
-    df_clean = df[['id_inc', 'id', 'slug', 'title', 'ready_data']]
-    df_clean = df_clean.dropna(subset=['ready_data'])
+    
+    # df_clean = df[['id_inc', 'id', 'slug', 'title', 'ready_data']]
+    
+    # Menghapus baris dengan data kosong
+    df_clean = df.dropna(subset=['ready_data'])
 
     # Intip hasilnya
     # df_clean.info()
     # print(df_clean.head())
     # df_clean.to_csv(settings.FILE_READY_DATA_PATH, index=False)
+
+    if df_clean.empty:
+        print("⚠️ Peringatan: Seluruh data gagal diproses NLP (hasil teks kosong).")
+        return
 
     print("🚀 Memulai Vektorisasi Otomatis via ChromaDB...")
 
@@ -121,29 +126,18 @@ def save_to_chromadb(token, data_content):
         embedding_function=embedder
     )
 
-    data_in_db = collection.get(include=[])
-    set_id_db = set(data_in_db["ids"])
-    print(f"📦 Saat ini ada {len(set_id_db)} artikel di dalam ChromaDB.")
+    daftar_id = df_clean["id"].tolist()
+    daftar_dokumen = df_clean["ready_data"].tolist()
+    daftar_metadata = [{"source": "agc_pipeline"} for _ in daftar_id]
 
-    df_new = df[~df["id"].isin(set_id_db)]
-    if not df_new.empty:
-        print(f"🔍 Menemukan {len(df_new)} artikel baru yang belum di-vektorisasi.")
+    collection.upsert(
+        ids=daftar_id,
+        documents=daftar_dokumen,
+        metadatas=daftar_metadata
+    )
 
-        daftar_id = df_new["id"].tolist()
-        daftar_dokumen = df_new["ready_data"].tolist()
-        daftar_metadata = df_new[["id_inc", "slug", "title"]].to_dict(orient="records")
-
-        collection.add(
-            ids=daftar_id,
-            documents=daftar_dokumen,
-            metadatas=daftar_metadata
-        )
-
-        print(f"🎉 Selesai! {len(df_new)} artikel baru aman di ChromaDB.")
-    else:
-        print("✨ Tidak ada artikel baru. Semua data sudah sinkron!")
-
-    print(f"🎉 Total data di ChromaDB: {collection.count()} artikel.")
+    print(f"🎉 Selesai! {len(daftar_id)} vektor baru berhasil ditanam ke ChromaDB.")
+    print(f"📦 Total data di ChromaDB saat ini: {collection.count()} artikel.")
     print(f"db path: {settings.DB_PATH}")
 
 def save_generated_article(title_article, data_article):
