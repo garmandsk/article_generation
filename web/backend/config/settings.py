@@ -39,7 +39,7 @@ FILE_CONTENT_PATH = str(ROOT_DIR / os.getenv("FILE_CONTENT_PATH", "data/scraping
 FILE_READY_DATA_PATH = str(ROOT_DIR / os.getenv("FILE_READY_DATA_PATH", "data/scraping/ready_data.csv"))
 FILE_TOPIC_DATA_PATH = str(ROOT_DIR / os.getenv("FILE_TOPIC_DATA_PATH", "data/clustering/topic_data.json"))
 FILE_CLUSTERING_DATA_PATH = str(ROOT_DIR / os.getenv("FILE_CLUSTERING_DATA_PATH", "data/clustering/clustering_data.csv"))
-
+FILE_METADATA_GENERATED_ARTICLE_PATH = str(ROOT_DIR / os.getenv("FILE_METADATA_GENERATED_ARTICLE_PATH", "data/generation/metadata.json"))
 # print(file_ready_data_path)
 
 # Name

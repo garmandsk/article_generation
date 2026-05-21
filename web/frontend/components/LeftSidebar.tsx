@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Pickaxe, Network, FileOutput, LogOut, ChevronLeft, ChevronRight, X, Info } from "lucide-react"; 
+import { Home, Pickaxe, Network, Sparkles, FileOutput, LogOut, ChevronLeft, ChevronRight, X, Info } from "lucide-react"; 
 
 
 export default function LeftSidebar() {
@@ -18,7 +18,7 @@ export default function LeftSidebar() {
     { name: "Dashboard", icon: Home, path: "/dashboard" },
     { name: "Scrap", icon: Pickaxe, path: "/dashboard/scrap" },
     { name: "Cluster", icon: Network, path: "/dashboard/cluster" },
-    { name: "Generate", icon: FileOutput, path: "/dashboard/generate" },
+    { name: "Generate", icon: Sparkles, path: "/dashboard/generate" },
   ];
 
   // Data konten info

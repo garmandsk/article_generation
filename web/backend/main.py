@@ -161,6 +161,60 @@ def logout_app(
         "message": "Logout berhasil, sesi telah dihapus"
     }
 
+# Data keseluruhan
+@app.get("/api/v1/data/stats")
+def data_stats(
+    token: str = Depends(get_mydigilearn_token)
+):  
+    # == Data Scrap ==
+    print("== Mengambil data scrap ==")
+    
+    # Data list
+    print("Mengambil data list")
+    data_list_article = get_from_json(settings.FILE_LIST_PATH)
+
+    # Data content
+    print("Mengambil data content")
+    data_content_article = get_from_json(settings.FILE_CONTENT_PATH)
+
+    # Database chromadb
+    print("Mengambil database chromadb")
+    collection = get_from_chromadb(settings.DB_PATH, settings.DB_NAME)
+    
+    # == Data Cluster/Topic ==
+    print("== Mengambil data Cluster/Topic ==")
+    data_topics = get_from_json(settings.FILE_TOPIC_DATA_PATH)
+    metadatas_topics = data_topics["metadatas"]
+    total_data_topic = metadatas_topics["total_clusters"]
+    total_data_rec_topic = metadatas_topics["total_recommended"]
+
+    # == Data Generate ==
+    print("== Mengambil data generate ==")
+    data_generate = get_from_json(settings.FILE_METADATA_GENERATED_ARTICLE_PATH)
+    total_data_generate = data_generate["total_generated_article"]
+
+    return {
+        "status_code": 200,
+        "status": "success",
+        "message": "data keseluruhan berhasil diambil",
+        "data": {
+            "scrap": {
+                "total_data_list": len(data_list_article),
+                "total_data_content": len(data_content_article),
+                "total_data_db": collection.count()
+            },
+            "cluster": {
+                "total_data_topic": total_data_topic,
+                "total_data_keyword": total_data_topic * 4,
+                "total_data_rec_topic": total_data_rec_topic,
+                "total_data_rec_keyword": total_data_rec_topic * 4
+            },
+            "generate": {
+                "total_data_generate": total_data_generate
+            }
+        }
+    }
+    
 # Data Articles
 @app.get("/api/v1/data/articles")
 # Cookie

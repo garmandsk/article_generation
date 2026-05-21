@@ -3,7 +3,8 @@ import time
 import asyncio
 from google import genai
 from pyprojroot import here
-from utils import save_generated_article
+from utils import save_generated_article, get_from_json, save_to_json
+from config import settings
 
 def client_gemini(api_key, index=2):
     if not api_key:
@@ -153,8 +154,12 @@ async def generate_article(selected_topics, keywords, prompt, model, model_api_k
 
     print("Menyimpan artikel")
     await asyncio.to_thread(save_generated_article, response_generate["data"]["title"], response_generate["data"]["content"])
+    
+    print("Menambah stat generated article")
+    metadata_generated_article = await asyncio.to_thread(get_from_json, settings.FILE_METADATA_GENERATED_ARTICLE_PATH)
+    metadata_generated_article["total_generated_article"] += 1
+    await asyncio.to_thread(save_to_json, settings.FILE_METADATA_GENERATED_ARTICLE_PATH, metadata_generated_article)
 
-        
     return {
         "status_code": 200,
         "status": "success",

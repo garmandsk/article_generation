@@ -9,7 +9,7 @@ export default function GeneratePage() {
   const mockKeywords = ["cloud", "iot", "engineer"];
 
   return (
-    <div className="flex h-full gap-6 relative">
+    <div className="flex h-full gap-6 relative animate-in fade-in duration-500">
       
       {/* --- MAIN AREA (KIRI) --- */}
       <div className={`flex flex-col gap-6 transition-all duration-300`}>

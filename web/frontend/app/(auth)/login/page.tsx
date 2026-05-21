@@ -44,16 +44,15 @@ export default function LoginPage() {
 
       const data = await response.json();
       console.log("data: ", data)
-      if (response.ok && data.status_code == 200){
-        console.log("login berhasil")
-
-        router.push("/dashboard")
-      } else {
+      if (!response.ok && !(data.status_code == 200)){
         console.log("error: ", data.detail)
 
         const pesanDariServer = data?.details?.details?.message || data?.message || data?.detail;
         setErrorMessage(pesanDariServer || "Login gagal. Periksa kembali username & password Anda.")
-      }
+      } 
+      console.log("login berhasil")
+
+      router.push("/dashboard")
     } catch (error) {
       setErrorMessage("Tidak dapat terhubung ke server. Pastikan API sedang berjalan.");
       console.error("Error saat login:", error);
