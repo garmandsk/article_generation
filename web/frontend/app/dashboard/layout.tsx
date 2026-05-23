@@ -13,7 +13,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   
   return (
     // Warna dasar kanvas (Paling gelap)
-    <div className="flex h-screen bg-[#02040F] text-[#E5DADA] font-sans overflow-hidden">
+    <div className="flex h-screen bg-[#02040F] text-[#E5DADA] font-sans ">
       
       {/* --- LEFT SIDEBAR --- */}
       <LeftSidebar />

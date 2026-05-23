@@ -8,12 +8,13 @@ export interface LogEntry {
   timestamp: string;
   type: LogType;
   message: string;
+  exec_time: string | null;
 }
 
 // 2. Interface untuk Store kita
 interface LogStore {
   logs: LogEntry[];
-  addLog: (type: LogType, message: string) => void;
+  addLog: (type: LogType, message: string, exec_time: string | null) => void;
   clearLogs: () => void;
 }
 
@@ -22,13 +23,14 @@ export const useLogStore = create<LogStore>((set) => ({
   logs: [],
   
   // Fungsi untuk menambah log baru
-  addLog: (type, message) => set((state) => {
+  addLog: (type, message, exec_time) => set((state) => {
     const now = new Date();
     const newLog: LogEntry = {
       id: crypto.randomUUID(), // ID unik bawaan browser
       timestamp: now.toLocaleTimeString('id-ID', { hour12: false }), // Format: 14:30:45
       type,
       message,
+      exec_time
     };
 
     // OPTIMALISASI: Batasi maksimal 100 log agar memori browser tidak penuh

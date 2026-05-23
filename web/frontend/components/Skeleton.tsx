@@ -26,4 +26,77 @@ function MetricBoxSkeleton() {
   );
 }
 
-export { MetricRowSkeleton, MetricBoxSkeleton };
+function PieChartSkeleton() {
+  return (
+    <div className="h-full w-full flex flex-col">
+
+      {/* Donat */}
+      <div className="flex-grow flex items-center justify-center">
+        <div className="relative w-110 h-110">
+          {/* Lingkaran luar */}
+          <div className="absolute inset-0 bg-slate-800 rounded-full animate-pulse"></div>
+          {/* Lingkaran dalam (efek bolong donut) */}
+          <div className="absolute inset-25  bg-slate-900 rounded-full"></div>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex justify-center gap-4 mt-6">
+        <div className="h-2 bg-slate-800 rounded w-12 animate-pulse"></div>
+        <div className="h-2 bg-slate-800 rounded w-12 animate-pulse"></div>
+        <div className="h-2 bg-slate-800 rounded w-12 animate-pulse"></div>
+      </div>
+    </div>
+  )
+}
+
+function BarChartSkeleton() {
+  return (
+  <div className="h-full w-full flex-grow flex flex-col justify-between py-2">
+
+    <div className="flex items-center gap-4">
+      <div className="h-3 bg-slate-800 rounded w-20 shrink-0 animate-pulse"></div>
+      <div className="h-5 bg-slate-800 rounded w-full animate-pulse"></div>
+    </div>
+    <div className="flex items-center gap-4">
+      <div className="h-3 bg-slate-800 rounded w-20 shrink-0 animate-pulse"></div>
+      <div className="h-5 bg-slate-800 rounded w-[85%] animate-pulse"></div>
+    </div>
+    <div className="flex items-center gap-4">
+      <div className="h-3 bg-slate-800 rounded w-20 shrink-0 animate-pulse"></div>
+      <div className="h-5 bg-slate-800 rounded w-[70%] animate-pulse"></div>
+    </div>
+    <div className="flex items-center gap-4">
+      <div className="h-3 bg-slate-800 rounded w-20 shrink-0 animate-pulse"></div>
+      <div className="h-5 bg-slate-800 rounded w-[60%] animate-pulse"></div>
+    </div>
+    <div className="flex items-center gap-4">
+      <div className="h-3 bg-slate-800 rounded w-20 shrink-0 animate-pulse"></div>
+      <div className="h-5 bg-slate-800 rounded w-[45%] animate-pulse"></div>
+    </div>
+    <div className="flex items-center gap-4">
+      <div className="h-3 bg-slate-800 rounded w-20 shrink-0 animate-pulse"></div>
+      <div className="h-5 bg-slate-800 rounded w-[45%] animate-pulse"></div>
+    </div>
+    <div className="flex items-center gap-4">
+      <div className="h-3 bg-slate-800 rounded w-20 shrink-0 animate-pulse"></div>
+      <div className="h-5 bg-slate-800 rounded w-[45%] animate-pulse"></div>
+    </div>
+    <div className="flex items-center gap-4">
+      <div className="h-3 bg-slate-800 rounded w-20 shrink-0 animate-pulse"></div>
+      <div className="h-5 bg-slate-800 rounded w-[45%] animate-pulse"></div>
+    </div>
+    <div className="flex items-center gap-4">
+      <div className="h-3 bg-slate-800 rounded w-20 shrink-0 animate-pulse"></div>
+      <div className="h-5 bg-slate-800 rounded w-[45%] animate-pulse"></div>
+    </div>
+    <div className="flex items-center gap-4">
+      <div className="h-3 bg-slate-800 rounded w-20 shrink-0 animate-pulse"></div>
+      <div className="h-5 bg-slate-800 rounded w-[45%] animate-pulse"></div>
+    </div>
+
+  </div>
+  );
+}
+
+export { MetricRowSkeleton, MetricBoxSkeleton, PieChartSkeleton, BarChartSkeleton };

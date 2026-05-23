@@ -23,17 +23,17 @@ function maskSensitiveData(text: string): string {
 }
 
 
-type LogLevel = 'info' | 'success' | 'error' | 'warning';
+type LogType = 'info' | 'success' | 'error' | 'warning';
 
 /**
  * Fungsi Utama Dual-Track Logging
  */
-export const sysLog = (level: LogLevel, rawMessage: string) => {
+export const sysLog = (type: LogType, rawMessage: string, exec_time: string | null) => {
   // Eksekusi Masking (Amankan info data)
   const safeMessage = maskSensitiveData(rawMessage);
 
   // Logger Frontend (Stateless)
-  useLogStore.getState().addLog(level, safeMessage);
+  useLogStore.getState().addLog(type, safeMessage, exec_time);
 
   // Logger Backend (Statefull -> Kirim ke LaaS)
   // try {

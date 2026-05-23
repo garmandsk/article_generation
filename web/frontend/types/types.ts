@@ -14,3 +14,18 @@ export interface DashboardStats {
     total_data_generate: number; 
   };
 }
+
+export interface PieChartData {
+  name: string;
+  value: number;
+}
+
+export interface BarChartData {
+  topic: string;
+  count: number;
+}
+
+export interface DashboardAnalytics {
+  pie_data: PieChartData[];
+  bar_data: BarChartData[];
+}

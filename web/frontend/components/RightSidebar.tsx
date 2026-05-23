@@ -27,7 +27,7 @@ export default function RightSidebar({ isOpen }: { isOpen: boolean }){
         isOpen
         ? "w-80 my-5 opacity-100"
         : "w-0 m-0 opacity-0 overflow-hidden"  
-      } transition-all duration-300 ease-in-out bg-[#002642]/80 backdrop-blue-xl border border-slate-700/50 rounded-2xl flex flex-col shadow-2xl relative z-20`}
+      } transition-all duration-300 ease-in-out bg-[#002642]/80 backdrop-blue-xl border border-slate-700/50 rounded-2xl flex flex-col shadow-2xl relative z-10`}
     >
       {/* Header */}
       <div className={`h-15 px-4 border-b border-slate-700/50 flex items-center justify-between`}>
@@ -57,8 +57,11 @@ export default function RightSidebar({ isOpen }: { isOpen: boolean }){
                 key={log.id}
                 className="flex gap-3 leading-relaxed animate-in fade-in duration-200"
               >
-                <span className="text-slate-500 shrink-0">[{log.timestamp}]</span>
-                <span className={`${getLogsColor(log.type)} wrap-break-words`}>{log.message}</span>
+                <div className="flex flex-col shrink-0 min-w-max mt-0.5">
+                  <span className="text-slate-500 text-xs">[{log.timestamp}]</span>
+                  <span className="text-green-400 text-[10px] text-right pr-1">{log.exec_time}</span>
+                </div>
+                <span className={`${getLogsColor(log.type)} wrap-break-words w-full text-sm`}>{log.message}</span>
               </div>
             ))
           )

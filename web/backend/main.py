@@ -10,6 +10,7 @@ if "REQUESTS_CA_BUNDLE" in os.environ:
     del os.environ["REQUESTS_CA_BUNDLE"]
 
 import requests
+import time
 from fastapi import FastAPI, Cookie, HTTPException, Response, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Annotated
@@ -19,9 +20,8 @@ from utils import get_from_json, get_from_chromadb, save_to_chromadb
 from config import settings
 from datetime import datetime, timedelta
 from jose import jwt
-from sqlalchemy import func
+from sqlalchemy import func, desc, asc
 from sqlalchemy.orm import Session
-from fastapi import Depends
 # Pastikan jalur import ini sesuai dengan struktur foldermu
 from config.database import get_db 
 from models.models import Article
@@ -33,8 +33,8 @@ app.add_middleware(
     allow_credentials=True, # WAJIB TRUE AGAR COOKIE BISA LEWAT
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Process-Time"]
 )
-
 
 def validate_mydigilearn_token(token):
     params_list = {
@@ -56,6 +56,7 @@ def validate_mydigilearn_token(token):
     # return response_list.json
 
 def get_mydigilearn_token(mydigilearn_token: Annotated[str | None, Cookie()] = None):
+    # print(f"token: {mydigilearn_token}")
     if not mydigilearn_token:
         raise HTTPException(
             status_code=401,
@@ -173,6 +174,7 @@ def data_stats(
     token: str = Depends(get_mydigilearn_token),
     db: Session = Depends(get_db) 
 ):  
+    start_time = time.perf_counter()
     print("== Mengambil Statistik Dashboard dari PostgreSQL ==")
     
     # == DATA SCRAP ==
@@ -203,10 +205,14 @@ def data_stats(
     # Asumsi: jika ada artikel yang sudah di-generate AI, statusnya berubah menjadi 'generated'
     total_data_generate = db.query(Article).filter(Article.status == "generated").count()
 
+    end_time = time.perf_counter()
+    exec_time_sec = str(round(end_time - start_time, 2)) + "s"
+
     return {
         "status_code": 200,
         "status": "success",
         "message": "Data statistik keseluruhan berhasil diambil secara instan",
+        "exec_time": exec_time_sec,
         "data": {
             "scrap": {
                 "total_data_list": total_data_list,
@@ -224,7 +230,71 @@ def data_stats(
             }
         }
     }
+
+# Data analytics
+@app.get("/api/v1/data/analytics")
+def data_analytics(
+    token: str = Depends(get_mydigilearn_token),
+    db: Session = Depends(get_db),
+    topic_sort : str = Query("desc")
+):
+    start_time = time.perf_counter()
+    # print(token)
+
+    # == Query Pie Chart == 
+    # Mengelompokkan berdasarkan kolom 'status'
+    print("Mengelompokkan berdasarkan kolom 'status'")
+    status_group = db.query(
+        Article.status,
+        func.count(Article.id).label("total")
+    ).group_by(Article.status).all()
     
+    # Format untuk frontend
+    pie_data = [
+        {
+            "name": status.replace("_", " ").title(),
+            "value": total
+        }
+        for status, total in status_group
+    ]
+
+    # == Query Bar Chart
+    # Mengelompokkan berdasarkan 'cluster_topic', diurutkan dari terbanyak
+    print("Mengelompokkan berdasarkan kolom 'status'")
+    base_query = db.query(
+        Article.cluster_topic,
+        func.count(Article.id).label("total")
+    ).filter(Article.cluster_topic.isnot(None)) \
+     .group_by(Article.cluster_topic) \
+     
+    if topic_sort == "asc":
+        topic_group = base_query.order_by(asc("total")).limit(10).all()
+    else:
+        topic_group = base_query.order_by(desc("total")).limit(10).all()
+    
+    # Format untuk frontend
+    bar_data = [
+        {
+            "topic": topic,
+            "count": total
+        }
+        for topic, total in topic_group
+    ]
+
+    end_time = time.perf_counter()
+    exec_time_sec = str(round(end_time - start_time, 2)) + "s"
+
+    return {
+        "status_code": 200,
+        "status": "success",
+        "message": "data analytics pie dan bar char berhasil diambil",
+        "exec_time": exec_time_sec,
+        "data": {
+            "pie_data": pie_data,
+            "bar_data": bar_data
+        }
+    }
+
 # Scraping
 @app.post("/api/v1/run/scrap/articles")
 # Cookie, query param
