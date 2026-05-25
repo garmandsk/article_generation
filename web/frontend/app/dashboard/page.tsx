@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { 
   Pickaxe, Database, FileText, Server, Network, BrainCircuit, 
-  Sparkles, LayoutGrid, FileBox, RefreshCw, PieChartIcon, BarChartHorizontalIcon, ArrowUpDown
+  Sparkles, LayoutGrid, FileBox, RefreshCw, PieChartIcon, BarChartHorizontalIcon, ArrowUpDown, Home, 
 } from "lucide-react";
 import { 
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
@@ -15,7 +15,13 @@ import { MetricRow, MetricBox } from "@/components/Box";
 import { MetricRowSkeleton, MetricBoxSkeleton, PieChartSkeleton, BarChartSkeleton } from "@/components/Skeleton";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 
-const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"]; 
+const STATUS_COLORS: Record<string, string> = {
+  "slug_only": "#64748b",      // Slate (Abu-abu) untuk data mentah
+  "vectorized": "#3b82f6",     // Blue
+  "clustered": "#a855f7",      // Purple
+  "generated": "#E59500",      // Gold (Tahap akhir yang paling berharga)
+  "outlier_cluster": "#ef4444" // Red (Untuk data yang terbuang)
+};
 
 export default function DashboardHome() {
   const [isLoading, setIsLoading] = useState(true);
@@ -40,7 +46,7 @@ export default function DashboardHome() {
       
       // exec_time = response.headers.get("X-Process-Time")
       const response_json = await response.json();
-      const exec_time = response_json.exec_time
+      const exec_time = response_json.exec_time || response.headers.get("X-Process-Time") || "0"
       console.log("exec_time", exec_time);
 
       const data: DashboardStats = response_json.data;
@@ -106,19 +112,25 @@ export default function DashboardHome() {
       
       {/* HEADER */}
       <div className="sticky top-0 z-50 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white tracking-wide">System Overview</h2>
-          <p className="text-sm text-slate-400 mt-1">Status pipeline data keseluruhan.</p>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-blue-500/10 rounded-xl text-gray-400 border border-blue-500/20">
+            <Home size={28} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-white tracking-wide">System Overview</h2>
+            <p className="text-sm text-slate-400 mt-1">Status pipeline data keseluruhan.</p>
+          </div>
         </div>
-        
-        <button 
-          onClick={fetchData}
-          disabled={isLoading}
-          className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-slate-700/50 rounded-lg text-slate-300 transition-all disabled:opacity-50 z-10"
-        >
-          <RefreshCw size={16} className={isLoading ? "animate-spin text-[#E59500]" : ""} />
-          <span>{isLoading ? "Syncing..." : "Refresh Data"}</span>
-        </button>
+
+          <button 
+            onClick={fetchData}
+            disabled={isLoading}
+            className="flex gap-2 ml-auto px-4 py-2 bg-white/5 hover:bg-white/10 border border-slate-700/50 rounded-lg text-slate-300 transition-all disabled:opacity-50 z-10"
+          >
+            <RefreshCw size={16} className={isLoading ? "animate-spin text-[#E59500]" : ""} />
+            <span>{isLoading ? "Syncing..." : "Refresh Data"}</span>
+          </button>
+
       </div>
 
       {/* Stats Data */}
@@ -136,7 +148,7 @@ export default function DashboardHome() {
           </div>
           
           {/* Stats */}
-          <div className="space-y-4 flex-1">
+          <div className="flex-1 flex flex-col justify-evenly">
             {isLoading ? (
               // Tampilkan 3 Skeleton Row
               <> <MetricRowSkeleton /> <MetricRowSkeleton /> <MetricRowSkeleton /> </>
@@ -168,13 +180,16 @@ export default function DashboardHome() {
           <div className="grid grid-cols-2 gap-4 flex-1 relative">
             {isLoading ? (
               // Tampilkan 4 Skeleton Box
-              <> <MetricBoxSkeleton /> <MetricBoxSkeleton /> <MetricBoxSkeleton /> <MetricBoxSkeleton /> </>
+              <> <MetricBoxSkeleton /> <MetricBoxSkeleton /> <MetricBoxSkeleton /> <MetricBoxSkeleton /> <MetricBoxSkeleton /> <MetricBoxSkeleton />
+              </>
             ) : (
               // Tampilkan Data Asli
               <>
-                <MetricBox label="Topic" value={stats?.cluster.total_data_topic} />
+                <MetricBox label="Clus. Article" value={stats?.cluster.total_data_article_clustered} />
+                <MetricBox label="Out. Article" value={stats?.cluster.total_data_article_outlier} />
+                <MetricBox label="Val. Topic" value={stats?.cluster.total_data_topic} />
                 <MetricBox label="Rec. Topic" value={stats?.cluster.total_data_rec_topic} />
-                <MetricBox label="Keyword" value={stats?.cluster.total_data_keyword} />
+                <MetricBox label="Val. Keyword" value={stats?.cluster.total_data_keyword} />
                 <MetricBox label="Rec. Keyword" value={stats?.cluster.total_data_rec_keyword} />
               </>
             )}
@@ -191,7 +206,7 @@ export default function DashboardHome() {
             <h3 className="text-xl font-bold text-white">Generate</h3>
           </div>
           
-          <div className="space-y-4 flex-1">
+          <div className="flex-1 flex flex-col justify-evenly">
             {isLoading ? (
               // Tampilkan 3 Skeleton Row
               <> <MetricRowSkeleton highlight /> <MetricRowSkeleton /> <MetricRowSkeleton /> </>
@@ -240,7 +255,7 @@ export default function DashboardHome() {
                       dataKey="value"
                     >
                       {charts?.pie_data.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || "#8884d8"} />
                       ))}
                     </Pie>
                     <Tooltip 

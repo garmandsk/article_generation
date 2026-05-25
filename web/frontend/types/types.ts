@@ -5,6 +5,8 @@ export interface DashboardStats {
     total_data_db: number; 
   };
   cluster: { 
+    total_data_article_clustered: number;
+    total_data_article_outlier: number;
     total_data_topic: number; 
     total_data_keyword: number; 
     total_data_rec_topic: number; 

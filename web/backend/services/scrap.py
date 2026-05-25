@@ -14,9 +14,7 @@ async def scrap_newer_list_articles(headers, max_scrap, overlap_limit, page, lim
     db: Session = SessionLocal()
     try:
         existing_ids = set(row[0] for row in db.query(Article.id_inc).all())
-        if len(existing_ids) > 0:
-            print(f"📌 Resume dari id_inc terakhir: {existing_ids}")
-        else:
+        if not len(existing_ids) > 0:
             print("📌 File ada, tapi isinya list kosong. mulai dari 0")
 
         newer_articles_batch = []
@@ -366,6 +364,8 @@ async def scrap_content_articles(headers):
         db.close()
 
 async def scrap_articles(token, mode, max_scrap, overlap_limit, page, limit_article_per_page):
+    start_time = time.perf_counter()
+
     # Scrap
     headers = settings.BASE_HEADERS.copy()
     headers["Authorization"] = f"Bearer {token}"
@@ -461,19 +461,25 @@ async def scrap_articles(token, mode, max_scrap, overlap_limit, page, limit_arti
         # Hitung statistik akhir untuk dikembalikan ke Response API (Dashboard Next.js)
         total_list = db.query(Article).count()
         total_content = db.query(Article).filter(Article.status.in_(["scraped", "vectorized"])).count()
-        total_chroma = db.query(Article).filter(Article.status == "vectorized").count()
+        total_chromadb = db.query(Article).filter(Article.status == "vectorized").count()
+
+        end_time = time.perf_counter()
+        exec_time_sec = str(round(end_time - start_time)) + "s"
 
         return {
             "status_code": 200,
             "status": "success",
             "message": "Pipeline database hybrid sukses dieksekusi.",
-            "details_scrap": details_scrap,
-            "system_health": {
-                "total_list_ditemukan": total_list,
-                "total_konten_terisi": total_content,
-                "total_sinkron_chromadb": total_chroma
+            "data": {
+                "details_scrap": details_scrap,
+                "system_health": {
+                    "total_list": total_list,
+                    "total_content": total_content,
+                    "total_chromadb": total_chromadb
+                },
+                "mode": mode,
             },
-            "mode": mode
+            "exec_time": exec_time_sec
         }
         
     except Exception as e:

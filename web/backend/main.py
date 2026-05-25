@@ -187,7 +187,7 @@ def data_stats(
     # Total data di ChromaDB. 
     # Alih-alih memanggil ChromaDB yang memakan waktu, kita baca dari status sinkronisasi Postgres!
     total_data_db = db.query(Article).filter(
-        Article.status.in_(["vectorized", "clustered", "generated"])
+        Article.status.in_(["vectorized", "clustered", "outlier_cluster", "generated"])
     ).count()
 
     # == DATA CLUSTER / TOPIC == 
@@ -200,6 +200,12 @@ def data_stats(
     total_data_rec_topic = db.query(Article.cluster_topic).filter(
         Article.is_recommended == True
     ).distinct().count()
+
+    # Hitung jumlah article yang berstatus "clustered"
+    total_data_article_clustered = db.query(Article).filter(Article.status == "clustered").count()
+
+    # Hitung jumlah article yang berstatus "outlier_cluster"
+    total_data_article_outlier = db.query(Article).filter(Article.status == "outlier_cluster").count()
 
     # == DATA GENERATE ==
     # Asumsi: jika ada artikel yang sudah di-generate AI, statusnya berubah menjadi 'generated'
@@ -220,10 +226,12 @@ def data_stats(
                 "total_data_db": total_data_db
             },
             "cluster": {
+                "total_data_article_clustered": total_data_article_clustered,
+                "total_data_article_outlier": total_data_article_outlier,
                 "total_data_topic": total_data_topic,
                 "total_data_keyword": total_data_topic * 4,
                 "total_data_rec_topic": total_data_rec_topic,
-                "total_data_rec_keyword": total_data_rec_topic * 4
+                "total_data_rec_keyword": total_data_rec_topic * 4,
             },
             "generate": {
                 "total_data_generate": total_data_generate
@@ -252,7 +260,7 @@ def data_analytics(
     # Format untuk frontend
     pie_data = [
         {
-            "name": status.replace("_", " ").title(),
+            "name": status, # Terpaksa pakai key name karena pie chart, hanya bisa membaca dengan key ini
             "value": total
         }
         for status, total in status_group
@@ -347,7 +355,7 @@ def data_articles(
 
     # Cek database
     print("📦 Menarik Vektor dari Database Lokal...")
-    print(f"DB Name: {settings.DB_NAME}")
+    print(f"DB status: {settings.DB_NAME}")
     print(f"DB Path: {settings.DB_PATH}")
     collection = get_from_chromadb(settings.DB_PATH, settings.DB_NAME)
     data_db = collection.get(

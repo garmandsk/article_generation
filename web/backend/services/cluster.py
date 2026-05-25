@@ -1,6 +1,7 @@
 import pandas as pd
 import chromadb
 import nltk
+import time
 from nltk.corpus import stopwords
 from sentence_transformers import SentenceTransformer
 from umap import UMAP
@@ -76,6 +77,8 @@ def extract_info_cluster(raw_text):
     return cluster_id, cluster_name, keywords
 
 def cluster_articles(payload, token):
+    start_time = time.perf_counter()
+
     print("📦 Menarik Vektor dari Database Lokal...")
 
     collection = get_from_chromadb(settings.DB_PATH, settings.DB_NAME)
@@ -111,7 +114,7 @@ def cluster_articles(payload, token):
     topic_model = BERTopic(
         embedding_model=embedding_model_prep(
             model_name=payload.embedding_model_config.model_name, 
-            token=payload.embedding_model_config.token
+            token=settings.HF_TOKEN
         ),
         umap_model = umap_model_prep(
             n_neighbors=payload.umap_config.n_neighbors, 
@@ -199,7 +202,12 @@ def cluster_articles(payload, token):
         # Menyimpan hasil clustering
         print("💾 Menyimpan label cluster ke PostgreSQL...")
 
-        pg_db.query(Article).update({"is_recommended": False})
+        pg_db.query(Article).filter(Article.id.in_(chroma_ids)).update({
+            "cluster_topic": None,
+            "cluster_keywords": None,
+            "is_recommended": False,
+            "status": "outlier_cluster"
+        }, synchronize_session=False)
 
         # Update nilai kolom 'cluster_topic' untuk setiap artikel yang lulus filter
         for index, row in df_clean.iterrows():
@@ -213,8 +221,9 @@ def cluster_articles(payload, token):
             pg_db.query(Article).filter(Article.id == article_id).update({
                 "cluster_topic": cname,
                 "cluster_keywords": ckeywords,
-                "is_recommended": recommend_status
-            })
+                "is_recommended": recommend_status,
+                "status": "clustered"
+            }, synchronize_session=False)
 
         pg_db.commit()
         print("✅ Database PostgreSQL berhasil diperbarui sepenuhnya.")
@@ -237,6 +246,9 @@ def cluster_articles(payload, token):
         # Sorting list cluster berdasarkan index secara ascending
         final_cluster_list = sorted(final_cluster_list, key=lambda x: x["cluster_id"])
 
+        end_time = time.perf_counter()
+        exec_time_sec = str(round(end_time - start_time)) + "s"
+        
         return {
             "status_code": 200,
             "status": "success",
@@ -250,7 +262,8 @@ def cluster_articles(payload, token):
                     "min_cf_range": min_cf_range
                 },
                 "cluster": final_cluster_list
-            }
+            },
+            "exec_time": exec_time_sec
         }
     
     except Exception as e:
