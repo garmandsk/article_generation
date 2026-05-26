@@ -13,23 +13,23 @@ export default function ClusterPage() {
   const [formData, setFormData] = useState({
     // General
     embedding_model: "all-MiniLM-L6-v2",
-    recommend_target: 10,
-    min_conf_score: 0.05,
+    recommend_target: 3,
+    min_conf_score: 0.5,
     // UMAP
-    n_neighbors: 15,
+    n_neighbors: 10,
     n_components: 5,
     min_dist: 0.0,
     metric_umap: "cosine",
     random_state: 42,
     // HDBSCAN
-    min_cluster_size: 10,
-    min_samples: 5,
+    min_cluster_size: 4,
+    min_samples: 2,
     metric_hdbscan: "euclidean",
     cluster_selection_method: "eom",
     prediction_data: true,
     // Vectorizer
-    ngram_range: "(1, 1)",
-    min_df: 1,
+    ngram_range: "(1, 6)",
+    min_df: 5,
     // CTFIDF
     bm25_weighting: true,
     reduce_frequent_words: true
@@ -79,7 +79,7 @@ export default function ClusterPage() {
   };
 
   return (
-    <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative">
+    <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative pb-10">
       
       {/* HEADER STICKY */}
       <div className="sticky top-0 z-50 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
@@ -319,7 +319,7 @@ export default function ClusterPage() {
               <div className="grid grid-cols-2 gap-6">
                 {/* Kartu 1: Total Cluster */}
                 <div className="bg-[#002642]/40 p-6 rounded-2xl border border-blue-500/20 text-center">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Total Clusters</p>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Total Topic</p>
                   <h4 className="text-5xl font-black text-blue-400">
                     {clusterResult.data.metadatas.total_cluster}
                   </h4>
@@ -327,7 +327,7 @@ export default function ClusterPage() {
                 
                 {/* Kartu 2: Recommended Cluster */}
                 <div className="bg-[#002642]/40 p-6 rounded-2xl border border-[#E59500]/20 text-center relative">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Rec. Clusters</p>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Rec. Topic</p>
                   <h4 className="text-5xl font-black text-[#E59500]">
                     {clusterResult.data.metadatas.total_recommended}
                   </h4>
@@ -336,24 +336,24 @@ export default function ClusterPage() {
                   </div>
                 </div>
 
-                {/* Kartu 3: Raw Articles */}
-                <div className="bg-[#0A0E1A] p-6 rounded-2xl border border-slate-700/50 text-center">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Raw Articles</p>
-                  <h4 className="text-4xl font-black text-slate-300">
-                    {clusterResult.data.metadatas.raw_total_article}
-                  </h4>
-                </div>
-
-                {/* Kartu 4: Filtered Articles & Min CF Range */}
+                {/* Kartu 3: Filtered Articles & Min CF Range */}
                 <div className="bg-[#0A0E1A] p-6 rounded-2xl border border-purple-500/20 text-center relative overflow-hidden">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Filtered Articles</p>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Clustered Articles</p>
                   <h4 className="text-4xl font-black text-purple-400">
-                    {clusterResult.data.metadatas.filltered_total_article}
+                    {clusterResult.data.metadatas.clustered_total_article}
                   </h4>
                   {/* Badge untuk min_cf_range */}
                   <div className="absolute top-2 right-2 px-2 py-1 bg-purple-500/10 text-purple-300 text-[10px] rounded-md border border-purple-500/20">
                     CF Range: {clusterResult.data.metadatas.min_cf_range}
                   </div>
+                </div>
+
+                {/* Kartu 4: Outlier Articles */}
+                <div className="bg-[#0A0E1A] p-6 rounded-2xl border border-slate-700/50 text-center">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Outlier Articles</p>
+                  <h4 className="text-4xl font-black text-slate-300">
+                    {clusterResult.data.metadatas.outlier_total_article}
+                  </h4>
                 </div>
               </div>
 

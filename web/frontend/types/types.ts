@@ -31,3 +31,34 @@ export interface DashboardAnalytics {
   pie_data: PieChartData[];
   bar_data: BarChartData[];
 }
+
+// Komponen Input Tag Kustom
+export interface TagInputProps {
+  label: string;
+  tags: { id: string; name: string; color: string }[];
+  placeholder?: string;
+  isLoading?: boolean;
+  onAddTag: (tagName: string) => void;
+  onRemoveTag: (tagId: string) => void;
+}
+
+// Tipe Data untuk Topik yang ditarik dari Backend
+export interface TopicData {
+  id: string;
+  name: string;
+  color: string;
+  keywords: string[];
+};
+
+export interface ConfirmationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  icon?: React.ReactNode;
+  isDestructive?: boolean;
+  children?: React.ReactNode;
+}

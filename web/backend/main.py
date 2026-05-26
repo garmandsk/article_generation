@@ -11,6 +11,7 @@ if "REQUESTS_CA_BUNDLE" in os.environ:
 
 import requests
 import time
+import json
 from fastapi import FastAPI, Cookie, HTTPException, Response, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Annotated
@@ -303,6 +304,74 @@ def data_analytics(
         }
     }
 
+# Data Cluster
+@app.get("/api/v1/data/cluster")
+async def get_data_cluster(
+    token: str = Depends(get_mydigilearn_token),
+    db: Session = Depends(get_db)
+):  
+    start_time = time.perf_counter()
+
+    # Mengambil data clustered yang diperlukan
+    articles = db.query(
+        Article.cluster_topic,
+        Article.is_recommended,
+        Article.cluster_keywords
+    ).filter(
+        Article.status == "clustered",
+        Article.cluster_topic.isnot(None)
+    ).all()
+
+    topic_map = {}
+    unique_keywords = set()
+
+    # 2. Proses agregasi
+    for topic, is_rec, keywords in articles:
+        if topic not in topic_map:
+            topic_map[topic] = {
+                "is_rec": is_rec,
+                "keywords": set()
+            }
+        elif is_rec:
+            topic_map[topic]["is_rec"] = True
+
+        if keywords:
+            kw_list = []
+            if isinstance(keywords, list):
+                kw_list = keywords
+            elif isinstance(keywords, str):
+                kw_list = [k.strip() for k in keywords.replace("{", "").replace("}", "").replace('"', '').replace("'", "").split(",")]
+
+            for kw in kw_list:
+                if kw:
+                    topic_map[topic]["keywords"].add(kw)
+
+    # 3. Format output sesuai kebutuhan state React
+    formatted_topics = [
+        {
+            "id": f"topic{i}",
+            "name": name,
+            "color": "green" if data["is_rec"] else "default",
+            "keywords": list(data["keywords"])[:8]
+        }
+        for i, (name, data) in enumerate(topic_map.items())
+    ]
+
+    # print(f"formatted_topics: \n{formatted_topics}")
+    
+    end_time = time.perf_counter()
+    exec_time_sec = str(round(end_time - start_time)) + "s"
+
+    return {
+        "status_code": 200,
+        "status": "success",
+        "message": "Data cluster/topik berhasil diambil",
+        "exec_time": exec_time_sec,
+        "data": {
+            "topics": formatted_topics
+        }
+    }
+
 # Scraping
 @app.post("/api/v1/run/scrap/articles")
 # Cookie, query param
@@ -337,7 +406,12 @@ async def run_generate(
     payload: GenerationPayload,
     token: str = Depends(get_mydigilearn_token),
 ):
-    response = await generate_article(payload.selected_topics, payload.keywords, payload.prompt, payload.model, payload.model_api_key)
+    print(f"payload: \n{payload}")
+
+    payloadJson = payload.json()
+    print(f"payload json: \n${payloadJson}")
+    
+    response = await generate_article(payload.topics, payload.keywords, payload.prompt, payload.model, payload.model_api_key)
     return response
 
 # ==================

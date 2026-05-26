@@ -251,7 +251,7 @@ export default function DashboardHome() {
                       cy="45%"
                       innerRadius={75} 
                       outerRadius={"80%"}
-                      paddingAngle={4}
+                      paddingAngle={0.5}
                       dataKey="value"
                     >
                       {charts?.pie_data.map((entry, index) => (

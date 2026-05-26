@@ -257,8 +257,8 @@ def cluster_articles(payload, token):
                 "metadatas": {
                     "total_cluster": len(final_cluster_list),
                     "total_recommended": len(recommend_cluster_ids),
-                    "raw_total_article": len(df_raw),
-                    "filltered_total_article": len(df_clean),
+                    "clustered_total_article": len(df_clean),
+                    "outlier_total_article": len(df_raw) - len(df_clean),
                     "min_cf_range": min_cf_range
                 },
                 "cluster": final_cluster_list

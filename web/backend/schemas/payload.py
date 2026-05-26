@@ -8,30 +8,30 @@ class LoginCredentials(BaseModel):
     # org_code tidak perlu dimasukkan jika itu statis milik sistemmu
 
 class EmbeddingModelConfig(BaseModel):
-    model_name: str = Field("paraphrase-multilingual-MiniLM-L12-v2") 
+    model_name: str = Field(default="paraphrase-multilingual-MiniLM-L12-v2") 
     token: str = Field("")
 
 class UMAPConfig(BaseModel):
-    n_neighbors: int = Field(10) 
-    n_components: int = Field(5) 
-    min_dist: float = Field(0.0)
-    metric: str = Field("cosine")
-    random_state: int = Field(42)
+    n_neighbors: int = Field(default=10) 
+    n_components: int = Field(default=5) 
+    min_dist: float = Field(default=0.0)
+    metric: str = Field(default="cosine")
+    random_state: int = Field(default=42)
 
 class HDBSCANConfig(BaseModel):
-    min_cluster_size: int = Field(4)
-    min_samples: int = Field(2)
-    metric: str = Field("euclidean") 
-    cluster_selection_method: str = Field("eom") 
-    prediction_data: bool = Field(True)
+    min_cluster_size: int = Field(default=4)
+    min_samples: int = Field(default=2)
+    metric: str = Field(default="euclidean") 
+    cluster_selection_method: str = Field(default="eom") 
+    prediction_data: bool = Field(default=True)
 
 class VectorizerConfig(BaseModel):
     ngram_range: tuple[int, int] = Field(default=(1, 6))
     min_df: float = Field(default=5)
 
 class CTFIDFConfig(BaseModel):
-    bm25_weighting: bool = Field(True) 
-    reduce_frequent_words: bool = Field(True)
+    bm25_weighting: bool = Field(default=True) 
+    reduce_frequent_words: bool = Field(default=True)
 
 class ClusteringPayload(BaseModel):
     recommend_target: int = Field(3)
@@ -43,7 +43,7 @@ class ClusteringPayload(BaseModel):
     ctfidf_config: CTFIDFConfig = CTFIDFConfig()
 
 class GenerationPayload(BaseModel):
-    selected_topics: list[str] = Field(["Kondisi Ekonomi", "Ekonomi"], description="Daftar topik yang dipilih pengguna")
+    topics: list[str] = Field(["Kondisi Ekonomi", "Ekonomi"], description="Daftar topik yang dipilih pengguna")
     keywords: list[str] = Field(["Ekonomi", "Kondisi Ekonomi", "Biaya Hidup"], description="Daftar kata kunci untuk memandu artikel")
     prompt: str = Field("Fokuskan pada dampak ekonomi sirkular bagi UMKM lokal", description="Instruksi spesifik atau fokus artikel")
     model: str = Field("gemini-3-flash-preview", description="Nama model AI yang digunakan")

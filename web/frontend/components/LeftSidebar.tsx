@@ -202,7 +202,7 @@ export default function LeftSidebar() {
                 ? "animate-out fade-out duration-300"
                 : "animate-in fade-in duration-300"
               }`}
-            onClick={handleInfoClosing}
+            onMouseDown={handleInfoClosing}
           />
 
           {/* 2. Modal Box dengan Animasi Zoom-In + Bounce */}
