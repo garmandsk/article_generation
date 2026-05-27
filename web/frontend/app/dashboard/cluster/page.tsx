@@ -7,6 +7,7 @@ import {
   Hash, Star
 } from "lucide-react";
 import { sysLog } from "@/utils/logger";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 export default function ClusterPage() {
   // 1. State Lengkap sesuai Referensi (5 Group Input)
@@ -37,6 +38,8 @@ export default function ClusterPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [clusterResult, setClusterResult] = useState<any | null>(null);
+
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -82,7 +85,7 @@ export default function ClusterPage() {
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative pb-10">
       
       {/* HEADER STICKY */}
-      <div className="sticky top-0 z-50 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-blue-500/10 rounded-xl text-[#E59500] border border-blue-500/20">
             <Network size={28} />
@@ -223,7 +226,7 @@ export default function ClusterPage() {
             </div>
             {/* TOMBOL EKSEKUSI */}
             <button 
-              onClick={handleClusterExecute}
+              onClick={() => setIsConfirmOpen(true)}
               disabled={isLoading}
               className="mt-8 w-full flex items-center justify-center gap-2 bg-[#E59500] hover:bg-[#E59500]/90 text-[#02040F] font-bold py-3.5 px-4 rounded-xl transition-all shadow-[0_0_15px_rgba(229,149,0,0.3)] hover:shadow-[0_0_25px_rgba(229,149,0,0.5)] disabled:opacity-50 disabled:hover:shadow-[0_0_15px_rgba(229,149,0,0.3)] disabled:cursor-not-allowed"
             >
@@ -410,6 +413,54 @@ export default function ClusterPage() {
           )}
         </div>
       </div>
+
+      {/* 🔥 PERBAIKAN: MODAL KONFIRMASI DENGAN DATA CLUSTER */}
+      <ConfirmationModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleClusterExecute}
+        title="Cluster Article Confirmation"
+        message="Apakah Anda yakin ingin memulai proses pengelompokan (clustering) dengan parameter BERTopic berikut? Proses ini membutuhkan komputasi AI dan mungkin memakan waktu beberapa saat."
+        confirmText="Ya, Mulai Clustering"
+        icon={<Network size={24} />}
+      >
+        {/* Kotak Ringkasan Data yang Diinput User */}
+        <div className="bg-[#02040F] border border-slate-800 rounded-xl p-4 space-y-4 mt-2">
+          
+          {/* Baris 1: Embedding Model */}
+          <div className="flex items-center justify-between border-b border-slate-800/50 pb-3">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Embedding Model</span>
+            <span className="text-xs font-bold text-[#E59500] bg-[#E59500]/10 px-2 py-1 rounded-md border border-[#E59500]/20 shadow-inner truncate max-w-[150px]">
+              {formData.embedding_model}
+            </span>
+          </div>
+
+          {/* Grid Parameter Angka (Menampilkan 4 Parameter Terpenting) */}
+          <div className="grid grid-cols-2 gap-3">
+            
+            <div className="bg-[#0A0E1A] border border-slate-800/80 p-3 rounded-lg flex justify-between items-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Rec. Target</span>
+              <span className="text-sm font-bold text-slate-200">{formData.recommend_target}</span>
+            </div>
+
+            <div className="bg-[#0A0E1A] border border-slate-800/80 p-3 rounded-lg flex justify-between items-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Min Conf. Score</span>
+              <span className="text-sm font-bold text-slate-200">{formData.min_conf_score}</span>
+            </div>
+
+            <div className="bg-[#0A0E1A] border border-slate-800/80 p-3 rounded-lg flex justify-between items-center" title="UMAP Neighbors">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Neighbors</span>
+              <span className="text-sm font-bold text-slate-200">{formData.n_neighbors}</span>
+            </div>
+
+            <div className="bg-[#0A0E1A] border border-slate-800/80 p-3 rounded-lg flex justify-between items-center" title="HDBSCAN Min Cluster Size">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Min Cluster</span>
+              <span className="text-sm font-bold text-slate-200">{formData.min_cluster_size}</span>
+            </div>
+            
+          </div>
+        </div>
+      </ConfirmationModal>
     </div>
   );
 }

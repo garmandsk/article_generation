@@ -48,6 +48,7 @@ export interface TopicData {
   name: string;
   color: string;
   keywords: string[];
+  article_count: number;
 };
 
 export interface ConfirmationModalProps {

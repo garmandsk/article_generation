@@ -111,7 +111,7 @@ export default function DashboardHome() {
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative">
       
       {/* HEADER */}
-      <div className="sticky top-0 z-50 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-blue-500/10 rounded-xl text-gray-400 border border-blue-500/20">
             <Home size={28} />

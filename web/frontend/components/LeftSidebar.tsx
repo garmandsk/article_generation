@@ -193,7 +193,7 @@ export default function LeftSidebar() {
 
       {/* MODAL INFO POPUP */}
       {isInfoOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
           
           {/* 1. Backdrop dengan Animasi Fade-In */}
           <div 

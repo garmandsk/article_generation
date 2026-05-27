@@ -2,32 +2,29 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { 
-  FileText, Settings, Zap, BadgeCheck, Network, 
+  FileText, Settings, Zap, 
   Sparkles, Play, CheckCircle2, Clock, AlertCircle, 
-  Plus, X, ChevronDown, Lock, EyeOff, Eye, Check, Copy,
-  Pencil
+  Plus, X, ChevronDown, Lock, EyeOff, Eye, Check, Copy
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
 import { TopicData } from "@/types/types";
 import { sysLog } from "@/utils/logger";
 import ConfirmationModal from "@/components/ConfirmationModal";
+import { EditableContentBox } from "@/components/EditableContentBox";
 
 export default function GeneratePage() {
-  // 1. Data Mentah dari Backend (Pool)
+  const [formData, setFormData] = useState({
+    topics: [] as string[],
+    keywords: [] as string[],
+    prompt: "",
+    model: "gemini-3-flash-preview",
+    model_api_key: ""
+  });
+  
+  const [topicLimit, setTopicLimit] = useState<number | "all">(10);
+  const [topicSort, setTopicSort] = useState<"count_asc" | "count_desc" | "name_asc" | "name_desc">("count_desc");
   const [topicPool, setTopicPool] = useState<TopicData[]>([]);
-  
-  // 2. State Pilihan Pengguna (Hanya menyimpan nama string)
-  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
-  
-  // State Konfigurasi Tambahan
-  const [prompt, setPrompt] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gemini-3-flash-preview");
-  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false); // <-- Tambahkan ini
 
-  const [apiKeyModel, setApiKeyModel] = useState("")
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false); // <-- Tambahkan ini
   const [showApiKeyModel, setShowApiKeyModel] = useState(false)
 
   // State Kontrol Layar
@@ -44,12 +41,11 @@ export default function GeneratePage() {
 
   // State tombol copy
   const [isTitleCopied, setIsTitleCopied] = useState(false);
-  const [isContentCopied, setIsContentCopied] = useState(false);
 
   // State editing
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState("");
-
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState("");
+  
   // Daftar model utama
   const PREDEFINED_MODELS = [
     { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
@@ -61,12 +57,31 @@ export default function GeneratePage() {
   // ================= LOGIKA KETERGANTUNGAN DATA =================
   // A. Memisahkan Topik (Terpilih vs Daftar Tunggu)
   const suggestedTopics = useMemo(() => {
-    return topicPool.filter(t => !selectedTopics.includes(t.name));
-  }, [topicPool, selectedTopics]);
+    // Ambil sesuai batas filter
+    let filtered = topicPool.filter(t => !formData.topics.includes(t.name));
+
+    // Sorting
+    filtered.sort((a, b) => {
+      const countA = a.article_count || 0;
+      const countB = b.article_count || 0;
+
+      if (topicSort === "count_asc") return countA - countB;
+      if (topicSort === "count_desc") return countB - countA;
+      if (topicSort === "name_asc") return a.name.localeCompare(b.name);
+      if (topicSort === "name_desc") return b.name.localeCompare(a.name);
+      return 0;
+    });
+
+    if (topicLimit != "all") {
+      filtered = filtered.slice(0, topicLimit as number);
+    }
+
+    return filtered;
+  }, [topicLimit, topicSort, topicPool, formData.topics]);
 
   // B. Mengumpulkan Keyword Daftar Tunggu (Hanya dari Topik yang TERPILIH)
   const suggestedKeywords = useMemo(() => {
-    const activeTopics = topicPool.filter(t => selectedTopics.includes(t.name));
+    const activeTopics = topicPool.filter(t => formData.topics.includes(t.name));
     const keywordSet = new Set<string>();
     
     activeTopics.forEach(t => {
@@ -74,29 +89,73 @@ export default function GeneratePage() {
     });
 
     // Jangan tampilkan keyword di daftar tunggu jika sudah dipilih
-    return Array.from(keywordSet).filter(kw => !selectedKeywords.includes(kw));
-  }, [topicPool, selectedTopics, selectedKeywords]);
+    return Array.from(keywordSet).filter(kw => !formData.keywords.includes(kw));
+  }, [topicPool, formData.topics, formData.keywords]);
 
-  // ================= HANDLERS INTERAKSI BUBBLE =================
+  // ================= HANDLERS INTERAKSI =================
+  // Handler universal untuk input teks biasa (Prompt, API Key)
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
   const toggleTopic = (name: string) => {
-    if (selectedTopics.includes(name)) {
-      // Hapus topik
-      setSelectedTopics(prev => prev.filter(t => t !== name));
-      
-      // OPTIONAL: Bersihkan keyword otomatis yang terkait dengan topik ini jika mau
-      // Di sini kita biarkan keyword yang sudah terpilih tetap ada, kecuali di-klik manual.
-    } else {
-      // Tambah topik
-      setSelectedTopics(prev => [...prev, name]);
-    }
+    setFormData(prev => {
+      const isCurrentlySelected = prev.topics.includes(name);
+
+      if (isCurrentlySelected) {
+        // Jika topik dihapus
+
+        const newTopics = prev.topics.filter(t => t !== name);
+        
+        // Cari daftar keyword dari topik yang baru saja dihapus 
+        const topicToRemoveData = topicPool.find(t => t.name === name)
+        const keywordsToRemove = topicToRemoveData?.keywords || [];
+
+        /// Kumpulkan semua keyword dari topik-topik sisanya (yang masih aktif)
+        const remainingKeywordsSet = new Set<string>();
+        newTopics.forEach(topicName => {
+          const tData = topicPool.find(t => t.name === topicName);
+          tData?.keywords?.forEach(kw => remainingKeywordsSet.add(kw));
+        });
+
+        // Filter keyword yang ada di kotak saat ini:
+        // - Pertahankan jika BUKAN milik topik yang dihapus.
+        // - ATAU pertahankan jika dia milik topik yang dihapus, TAPI kebetulan masih dipakai topik lain.
+        const newKeywords = prev.keywords.filter(kw => 
+          !keywordsToRemove.includes(kw) || remainingKeywordsSet.has(kw)
+        );
+
+        return {
+          ...prev,
+          topics: newTopics,
+          keywords: newKeywords
+        };
+
+      } else {
+        // Jika topik ditambah
+
+        const selectedTopicData = topicPool.find(t => t.name === name);
+        const autoKeywords = selectedTopicData?.keywords || [];
+
+        const mergedKeywords = new Set([...prev.keywords, ...autoKeywords]);
+
+        return {
+          ...prev,
+          topics: [...prev.topics, name],
+          keywords: Array.from(mergedKeywords)
+        }
+      }
+    });
   };
 
   const toggleKeyword = (name: string) => {
-    if (selectedKeywords.includes(name)) {
-      setSelectedKeywords(prev => prev.filter(k => k !== name));
-    } else {
-      setSelectedKeywords(prev => [...prev, name]);
-    }
+    setFormData(prev => ({
+      ...prev,
+      keywords: prev.keywords.includes(name)
+        ? prev.keywords.filter(k => k !== name)
+        : [...prev.keywords, name]
+    }));
   };
 
   // Handler Input Manual
@@ -136,19 +195,12 @@ export default function GeneratePage() {
     setGenerateResult(null);
     sysLog("info", "Memulai proses Generate Artikel AI...", exec_time);
 
-    const payload = {
-      topics: selectedTopics,
-      keywords: selectedKeywords,
-      prompt: prompt,
-      model: selectedModel,
-      model_api_key: apiKeyModel
-    };
-
     try {
-      const response = await fetch("http://localhost:8000/api/v1/run/generate", {
+      const generateAPI = "http://localhost:8000/api/v1/run/generate";
+      const response = await fetch(generateAPI, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(formData),
         credentials: "include"
       });
 
@@ -158,8 +210,8 @@ export default function GeneratePage() {
       console.log("result", result);
 
       setGenerateResult(result);
-      setEditedContent(result.data?.content);
-
+      setEditedTitle(result.data?.title || "");
+      
       sysLog("success", "Artikel berhasil di-generate.", result.exec_time);
 
     } catch (error) {
@@ -172,9 +224,9 @@ export default function GeneratePage() {
 
   const handleCopyTitle = async () => {
     let exec_time = "0";
-    if (!generateResult?.data?.title) return;
+    if (!editedTitle) return;
     try {
-      await navigator.clipboard.writeText(generateResult.data.title)
+      await navigator.clipboard.writeText(editedTitle)
       setIsTitleCopied(true);
       setTimeout(() => setIsTitleCopied(false), 2000);
       sysLog("success", "Judul disalin ke clipboard!", exec_time);
@@ -183,42 +235,7 @@ export default function GeneratePage() {
     }
   }
 
-  const handleCopyContent = async () => {
-    let exec_time = "0";
-    if (!generateResult?.data?.content) return;
-    try {
-      await navigator.clipboard.writeText(generateResult.data.content)
-      setIsContentCopied(true);
-      setTimeout(() => setIsContentCopied(false), 2000);
-      sysLog("success", "Konten disalin ke clipboard!", exec_time);
-    } catch (error) {
-      sysLog("error", "Gagal menyalin konten.", exec_time)
-    }
-  }
-
-  // Inisialisasi Tiptap editor
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content: "",
-    editable: isEditing,
-    onUpdate: ({ editor }) => {
-      // Sinkronisasi setiap ada perubahan
-    },
-  });
-
-  const contentRef = useRef<HTMLDivElement>(null);
-  const handleSaveEdit = () => {
-    let exec_time = "0";
-    
-    if (contentRef.current) {
-      const newContent = contentRef.current.innerText; // Mengambil teks hasil edit
-      setEditedContent(newContent);
-      setIsEditing(false);
-      sysLog("success", "Perubahan tersimpan secara lokal.", exec_time);
-    }
-  };
-
-  // ================= FETCHING DATA =================
+  // ================= FETCHING INIT DATA =================
   useEffect(() => {
     const fetchInitialData = async () => {
       let exec_time = "0";
@@ -226,7 +243,8 @@ export default function GeneratePage() {
 
       setIsFetchingTags(true);
       try {
-        const response = await fetch("http://localhost:8000/api/v1/data/cluster", {
+        const dataClusterAPI = "http://localhost:8000/api/v1/data/cluster";
+        const response = await fetch(dataClusterAPI, {
           credentials: "include"
         });
         const result = await response.json();
@@ -244,22 +262,11 @@ export default function GeneratePage() {
     fetchInitialData();
   }, []);
 
-  // Editing
-  useEffect(() => {
-    if (editor && generateResult?.data?.content) {
-      editor.commands.setContent(generateResult.data.content);
-    }
-  }, [generateResult, editor]);
-
-  useEffect(() => {
-    editor?.setEditable(isEditing);
-  }, [isEditing, editor])
-
   return (
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative pb-10">
 
       {/* HEADER STICKY */}
-      <div className="sticky top-0 z-50 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-blue-500/10 rounded-xl text-purple-400 border border-blue-500/20">
             <Sparkles size={28} />
@@ -291,36 +298,74 @@ export default function GeneratePage() {
                   Selected Topics
                 </label>
                 
-                {/* Selected Box */}
+                {/* 1. Selected Box */}
                 <div className="flex flex-wrap gap-2 p-3 bg-[#02040F] border border-slate-700/50 rounded-lg min-h-[56px] transition-all focus-within:border-blue-500/50">
-                  {selectedTopics.length === 0 && !topicInputValue && (
+                  {formData.topics.length === 0 && !topicInputValue && (
                     <span className="text-sm text-slate-600 my-auto italic">Pilih dari daftar di bawah...</span>
                   )}
-                  {selectedTopics.map(name => (
-                    <button 
-                      key={`sel-topic-${name}`}
-                      onClick={() => toggleTopic(name)}
-                      className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border transition-all active:scale-95 group ${getColorClass(name, "topic")}`}
-                    >
-                      {name}
-                      <X size={12} className="opacity-60 group-hover:opacity-100" />
-                    </button>
-                  ))}
+                  {formData.topics.map(name => {
+                    // Cari data asli untuk mengambil count-nya
+                    const topicData = topicPool.find(t => t.name === name);
+                    const count = topicData?.article_count || 0;
+                    
+                    return (
+                      <button 
+                        key={`sel-topic-${name}`}
+                        onClick={() => toggleTopic(name)}
+                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border transition-all active:scale-95 group ${getColorClass(name, "topic")}`}
+                      >
+                        {name}
+                        {/* 🔥 BADGE ANGKA (SELECTED) */}
+                        <span className="text-[9px] opacity-60">({count})</span>
+                        <X size={12} className="opacity-60 group-hover:opacity-100" />
+                      </button>
+                    )
+                  })}
                   <input 
                     type="text"
                     value={topicInputValue}
                     onChange={(e) => setTopicInputValue(e.target.value)}
-                    onKeyDown={(e) => handleManualAdd(e, topicInputValue, setTopicInputValue, toggleTopic, selectedTopics)}
-                    placeholder={selectedTopics.length === 0 ? "" : "Ketik manual..."}
+                    onKeyDown={(e) => handleManualAdd(e, topicInputValue, setTopicInputValue, toggleTopic, formData.topics)}
+                    placeholder={formData.topics.length === 0 ? "" : "Ketik manual..."}
                     className="flex-1 bg-transparent text-sm text-slate-200 outline-none min-w-[120px]"
                   />
                 </div>
 
-                {/* Waiting List Box (Suggestion) */}
+                {/* 2. Waiting List Box (Suggestion) */}
                 <div className="p-3 bg-[#02040F]/50 border border-slate-800 border-dashed rounded-lg">
-                  <span className="text-[10px] text-slate-500 block mb-2 font-medium uppercase">list of topics</span>
+                  
+                  {/* FILTER & SORT */}
+                  <div className="flex items-center justify-between mb-3 border-b border-slate-800/50 pb-2">
+                    <span className="text-[10px] text-slate-500 font-medium uppercase">List of Topics</span>
+                    <div className="flex items-center gap-2">
+                      {/* Sort Dropdown */}
+                      <select 
+                        value={topicSort} 
+                        onChange={(e) => setTopicSort(e.target.value as any)}
+                        className="bg-[#0A0E1A] text-[10px] text-slate-400 border border-slate-700 rounded px-1.5 py-0.5 outline-none cursor-pointer hover:border-slate-500 transition-colors"
+                      >
+                        <option value="count_desc">Highest Count</option>
+                        <option value="count_asc">Lowest Count</option>
+                        <option value="name_asc">A - Z</option>
+                        <option value="name_desc">Z - A</option>
+                      </select>
+                      
+                      {/* Limit Dropdown */}
+                      <select 
+                        value={topicLimit} 
+                        onChange={(e) => setTopicLimit(e.target.value === "all" ? "all" : Number(e.target.value))}
+                        className="bg-[#0A0E1A] text-[10px] text-slate-400 border border-slate-700 rounded px-1.5 py-0.5 outline-none cursor-pointer hover:border-slate-500 transition-colors"
+                      >
+                        <option value={5}>Top 5</option>
+                        <option value={10}>Top 10</option>
+                        <option value={50}>Top 50</option>
+                        <option value="all">All</option>
+                      </select>
+                    </div>
+                  </div>
+
                   {isFetchingTags ? (
-                    <div className="flex gap-2 animate-pulse">
+                    <div className="flex gap-2 animate-pulse mt-2">
                       <div className="h-6 w-20 bg-slate-800/50 rounded-full border border-slate-700/30"></div>
                       <div className="h-6 w-24 bg-slate-800/50 rounded-full border border-slate-700/30"></div>
                     </div>
@@ -330,18 +375,25 @@ export default function GeneratePage() {
                         <button 
                           key={`sug-topic-${t.id}`}
                           onClick={() => toggleTopic(t.name)}
-                          className={`flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full border transition-all active:scale-95 ${
+                          className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border transition-all active:scale-95 ${
                             t.color === "green"
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50" // Hijau untuk Recommended
-                              : "bg-slate-900/50 text-slate-400 border-slate-700 hover:bg-slate-800 hover:text-slate-200 hover:border-slate-500" // Abu-abu untuk Default
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50"
+                              : "bg-slate-900/50 text-slate-400 border-slate-700 hover:bg-slate-800 hover:text-slate-200 hover:border-slate-500"
                           }`}
                         >
                           <Plus size={12} /> {t.name}
+                          
+                          {/* BADGE ANGKA */}
+                          <span className={`ml-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            t.color === "green" ? "bg-emerald-500/20 text-emerald-300" : "bg-black/40 text-slate-400"
+                          }`}>
+                            {t.article_count || 0}
+                          </span>
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-600 italic">Semua topik telah dipilih.</span>
+                    <span className="text-xs text-slate-600 italic mt-2 block">Semua topik pada filter ini telah dipilih.</span>
                   )}
                 </div>
               </div>
@@ -350,15 +402,15 @@ export default function GeneratePage() {
               <div className="space-y-3">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between">
                   <span>Selected Keywords</span>
-                  {selectedTopics.length === 0 && <span className="text-red-400/80 normal-case italic">*Pilih topik dulu</span>}
+                  {formData.topics.length === 0 && <span className="text-red-400/80 normal-case italic">*Pilih topik dulu</span>}
                 </label>
                 
                 {/* Selected Box */}
                 <div className="flex flex-wrap gap-2 p-3 bg-[#02040F] border border-slate-700/50 rounded-lg min-h-[56px] transition-all focus-within:border-[#E59500]/50">
-                  {selectedKeywords.length === 0 && !keywordInputValue && (
+                  {formData.keywords.length === 0 && !keywordInputValue && (
                     <span className="text-sm text-slate-600 my-auto italic">Pilih dari daftar di bawah...</span>
                   )}
-                  {selectedKeywords.map(name => (
+                  {formData.keywords.map(name => (
                     <button 
                       key={`sel-kw-${name}`}
                       onClick={() => toggleKeyword(name)}
@@ -372,14 +424,14 @@ export default function GeneratePage() {
                     type="text"
                     value={keywordInputValue}
                     onChange={(e) => setKeywordInputValue(e.target.value)}
-                    onKeyDown={(e) => handleManualAdd(e, keywordInputValue, setKeywordInputValue, toggleKeyword, selectedKeywords)}
-                    placeholder={selectedKeywords.length === 0 ? "" : "Ketik manual..."}
+                    onKeyDown={(e) => handleManualAdd(e, keywordInputValue, setKeywordInputValue, toggleKeyword, formData.keywords)}
+                    placeholder={formData.keywords.length === 0 ? "" : "Ketik manual..."}
                     className="flex-1 bg-transparent text-sm text-slate-200 outline-none min-w-[120px]"
                   />
                 </div>
 
                 {/* Waiting List Box (Suggestion) */}
-                <div className={`p-3 bg-[#02040F]/50 border border-slate-800 border-dashed rounded-lg transition-opacity ${selectedTopics.length === 0 ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                <div className={`p-3 bg-[#02040F]/50 border border-slate-800 border-dashed rounded-lg transition-opacity ${formData.topics.length === 0 ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                   <span className="text-[10px] text-slate-500 block mb  -2 font-medium uppercase">List of Keywords (By Topics)</span>
                   {suggestedKeywords.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
@@ -395,13 +447,13 @@ export default function GeneratePage() {
                     </div>
                   ) : (
                     <span className="text-xs text-slate-600 italic">
-                      {selectedTopics.length === 0 ? "Menunggu topik dipilih..." : "Tidak ada rekomendasi tersisa."}
+                      {formData.topics.length === 0 ? "Menunggu topik dipilih..." : "Tidak ada rekomendasi tersisa."}
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* ============== SECTION LAINNYA ============== */}
+              {/* ============== Selection Model ============== */}
               <div className="space-y-1 mt-2 relative">
                 <label className="text-[10px] font-bold text-slate-500 uppercase">Selected Model</label>
                 
@@ -409,8 +461,9 @@ export default function GeneratePage() {
                 <div className="relative">
                   <input 
                     type="text"
-                    value={selectedModel} 
-                    onChange={(e) => setSelectedModel(e.target.value)}
+                    name="model"
+                    value={formData.model} 
+                    onChange={handleInputChange}
                     onFocus={() => setIsModelDropdownOpen(true)}
                     // Delay onBlur sedikit agar klik pada dropdown sempat tereksekusi
                     onBlur={() => setIsModelDropdownOpen(false)} 
@@ -431,7 +484,7 @@ export default function GeneratePage() {
                           key={model.value}
                           onMouseDown={(e) => {
                             e.preventDefault();
-                            setSelectedModel(model.value);
+                            setFormData(prev => ({ ...prev, model: model.value }));
                             setIsModelDropdownOpen(false);
                           }}
                           className="px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800 hover:text-[#E59500] cursor-pointer transition-colors border-b border-slate-800/50 last:border-0 flex justify-between items-center"
@@ -442,9 +495,9 @@ export default function GeneratePage() {
                       ))}
                       
                       {/* Indikator Jika Mengetik Model Custom */}
-                      {!PREDEFINED_MODELS.find(m => m.value === selectedModel) && selectedModel.trim() !== "" && (
+                      {!PREDEFINED_MODELS.find(m => m.value === formData.model) && formData.model.trim() !== "" && (
                         <div className="px-4 py-2.5 text-sm text-emerald-400 bg-emerald-500/10 border-t border-emerald-500/20 italic">
-                          Menggunakan model kustom: "{selectedModel}"
+                          Menggunakan model kustom: "{formData.model}"
                         </div>
                       )}
                     </div>
@@ -454,8 +507,10 @@ export default function GeneratePage() {
 
               {/* Input Api Key */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  API Key Model
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between">
+                  <span>API Key Model</span>
+                  {/* Peringatan akan muncul jika input kosong */}
+                  {formData.model_api_key.trim() === "" && <span className="text-red-400/80 normal-case italic">*Wajib diisi</span>}
                 </label>
                 
                 <div className="relative">
@@ -466,16 +521,12 @@ export default function GeneratePage() {
                   
                   <input 
                     type={showApiKeyModel ? "text" : "password"} 
+                    name="model_api_key"
                     required
-                    value={apiKeyModel}
-                    onChange={(e) => setApiKeyModel(e.target.value)}
+                    value={formData.model_api_key}
+                    onChange={handleInputChange}
                     placeholder="sk-..." 
                     className="w-full bg-[#02040F] border border-slate-700 text-slate-200 pl-10 pr-10 py-2.5 text-sm rounded-lg focus:border-[#E59500] outline-none transition-colors placeholder:text-slate-600"
-                    
-                    // Event pengujian tetap aman di sini
-                    // onPaste={(e) => console.log("User melakukan Paste:", e.clipboardData.getData('text'))}
-                    // onCopy={() => console.log("User melakukan Copy")}
-                    // onCut={() => console.log("User melakukan Cut")}
                   />
 
                   {/* 🔥 TOGGLER IKON MATA (Sisi Kanan Dalam Input Box) */}
@@ -497,8 +548,9 @@ export default function GeneratePage() {
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Custom Prompt (Optional)</label>
                 <textarea 
-                  value={prompt} 
-                  onChange={(e) => setPrompt(e.target.value)} 
+                  name="prompt"
+                  value={formData.prompt} 
+                  onChange={handleInputChange} 
                   placeholder="Tambahkan instruksi khusus untuk AI..." 
                   className="w-full h-24 bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg p-3 focus:border-[#E59500] outline-none transition-colors"
                 />
@@ -509,7 +561,7 @@ export default function GeneratePage() {
             {/* TOMBOL EKSEKUSI */}
             <button 
               onClick={() => setIsConfirmOpen(true)}
-              disabled={isLoading || isFetchingTags || selectedTopics.length === 0}
+              disabled={isLoading || isFetchingTags || formData.topics.length === 0 || formData.model_api_key.trim() === ""}
               className="mt-8 w-full flex items-center justify-center gap-2 bg-[#E59500] hover:bg-[#E59500]/90 text-[#02040F] font-bold py-3.5 px-4 rounded-xl transition-all shadow-[0_0_15px_rgba(229,149,0,0.3)] hover:shadow-[0_0_25px_rgba(229,149,0,0.5)] disabled:opacity-50 disabled:hover:shadow-none disabled:cursor-not-allowed"
             >
               {isLoading ? (
@@ -583,7 +635,7 @@ export default function GeneratePage() {
           
           {/* Kondisi  4: Sukses Render Data */}
           {!isLoading && generateResult && !generateResult.error && generateResult.status === "success" && (
-            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500 flex-1 flex flex-col justify-center">
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500 flex-1 flex flex-col">
 
               {/* 1. HIGHLIGHT BANNER */}
               <div className="flex flex-col items-center justify-center py-6 bg-emerald-950/30 rounded-xl border border-emerald-500/20 mb-6 text-center px-4 relative overflow-hidden">
@@ -600,80 +652,51 @@ export default function GeneratePage() {
               </div>
 
               {/* JUDUL ARTIKEL */}
-              <div className="bg-[#002642]/60 p-5 rounded-2xl border border-blue-500/20 shadow-inner flex-1 flex flex-col">
+              <div className="bg-[#002642]/60 p-5 rounded-2xl border border-blue-500/20 shadow-inner flex-1 flex flex-col transition-all">
                 <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Title Article</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">Title Article {isEditingTitle && <span className="bg-[#E59500] text-[#02040F] px-1.5 py-0.5 rounded text-[8px] animate-pulse">EDIT MODE</span>}</p>
                   
-                  <button 
-                    onClick={() => setIsEditing(!isEditing)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                      isEditing ? "bg-emerald-500 text-white" : "bg-slate-800 text-slate-300"
-                    }`}
-                  >
-                    <Pencil size={12} /> {isEditing ? "Save Changes" : "Click to Edit"}
-                  </button>
-
                   {/* 🔥 TOMBOL COPY: JUDUL */}
                   <button
                     onClick={handleCopyTitle}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-md ${
-                      isTitleCopied 
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-md ${isTitleCopied 
                         ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50" 
                         : "bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/20 active:scale-95"
                     }`}
                   >
-                    {isTitleCopied ? <Check size={14} /> : <Copy size={14} />}
-                    {isTitleCopied ? "Copied" : "Copy Title"}
+                    {isTitleCopied 
+                    ? <Check size={14} /> 
+                    : <Copy size={14} />}
+                    {isTitleCopied 
+                    ? "Copied" 
+                    : "Copy Title"}
                   </button>
                 </div>
                 
-                <h4 className="text-xl font-black text-white leading-relaxed pr-2">
-                  {generateResult.data.title}
-                </h4>
+                {isEditingTitle ? (
+                  <input
+                    autoFocus
+                    value={editedTitle}
+                    onChange={(e) => setEditedTitle(e.target.value)}
+                    onBlur={() => setIsEditingTitle(false)} // Simpan saat klik di luar
+                    className="w-full text-xl font-black text-white bg-[#0A0E1A] border border-[#E59500]/50 rounded-lg p-2 outline-none focus:ring-2 ring-[#E59500]/20"
+                  />
+                ) : (
+                  <h4 
+                    onClick={() => setIsEditingTitle(true)}
+                    className="text-xl font-black text-white leading-relaxed pr-2 cursor-pointer hover:text-[#E59500] transition-colors"
+                    title="Klik untuk mengedit judul"
+                  >
+                    {editedTitle}
+                  </h4>
+                )}
               </div>
 
-              {/* KONTEN ARTIKEL (DI-RENDER DENGAN MARKDOWN) */}
-              <div className="bg-[#02040F] p-6 rounded-2xl border border-slate-700/50 shadow-inner flex-1 space-y-2 flex flex-col max-h-[500px]">
-                <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Content Article</p>
-                  
-                  {/* 🔥 TOMBOL COPY: KONTEN */}
-                  <button
-                    onClick={handleCopyContent}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-md ${
-                      isContentCopied 
-                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50" 
-                        : "bg-[#E59500] text-[#02040F] hover:bg-[#ffb020] active:scale-95"
-                    }`}
-                  >
-                    {isContentCopied ? <Check size={14} /> : <Copy size={14} />}
-                    {isContentCopied ? "Copied" : "Copy Content"}
-                  </button>
-                </div>
-                
-                {/* 🔥 PENGGUNAAN REACT MARKDOWN (Area Scroll) */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-                  <div
-                    ref={contentRef}
-                    contentEditable={isEditing}
-                    suppressContentEditableWarning={true} 
-                    className="prose prose-sm prose-invert max-w-none text-slate-200 font-serif
-                    prose-headings:text-white prose-headings:font-bold
-                    prose-h1:text-xl prose-h2:text-lg prose-h3:text-base
-                    prose-p:leading-relaxed prose-p:mb-4
-                    prose-a:text-[#E59500] prose-a:no-underline hover:prose-a:underline
-                    prose-strong:text-white prose-strong:font-bold
-                    prose-ul:list-disc prose-ul:ml-4 prose-ol:list-decimal prose-ol:ml-4
-                    prose-li:mb-1
-                    prose-blockquote:border-l-4 prose-blockquote:border-[#E59500] prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-slate-400
-                  ">
-                     {isEditing ? 
-                      editedContent 
-                      : 
-                      <ReactMarkdown>{editedContent}</ReactMarkdown>}
-                  </div>
-                </div>
-              </div>
+              {/* KONTEN ARTIKEL */}
+              <EditableContentBox
+                initialContent={generateResult.data.content}
+                titleText="Content Article"
+              />
 
             </div>
           )}
@@ -685,7 +708,7 @@ export default function GeneratePage() {
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={handleGenerateExecute}
         title="Generate Article Confirmation"
-        message={`Apakah Anda yakin ingin menginstruksikan AI untuk menulis artikel berdasarkan ${selectedTopics.length} topik dan ${selectedKeywords.length} kata kunci yang dipilih? Proses ini mungkin memakan waktu beberapa detik.`}
+        message={`Apakah Anda yakin ingin menginstruksikan AI untuk menulis artikel berdasarkan ${formData.topics.length} topik dan ${formData.keywords.length} kata kunci yang dipilih? Proses ini mungkin memakan waktu beberapa detik.`}
         confirmText="Ya, Eksekusi"
         icon={<Sparkles size={24} />}
       >
@@ -696,15 +719,15 @@ export default function GeneratePage() {
           <div className="flex items-center justify-between border-b border-slate-800/50 pb-3">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Model</span>
             <span className="text-sm font-bold text-[#E59500] bg-[#E59500]/10 px-2 py-0.5 rounded border border-[#E59500]/20">
-              {selectedModel}
+              {formData.model}
             </span>
           </div>
 
           {/* Baris 2: Topics */}
           <div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Topik Terpilih ({selectedTopics.length})</span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Topik Terpilih ({formData.topics.length})</span>
             <div className="flex flex-wrap gap-1.5">
-              {selectedTopics.map(t => (
+              {formData.topics.map(t => (
                 <span key={`mod-t-${t}`} className="bg-blue-500/10 text-blue-300 border border-blue-500/20 px-2.5 py-1 rounded-full text-xs">
                   {t}
                 </span>
@@ -714,9 +737,9 @@ export default function GeneratePage() {
 
           {/* Baris 3: Keywords */}
           <div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Kata Kunci ({selectedKeywords.length})</span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Kata Kunci ({formData.keywords.length})</span>
             <div className="flex flex-wrap gap-1.5">
-              {selectedKeywords.length > 0 ? selectedKeywords.map(k => (
+              {formData.keywords.length > 0 ? formData.keywords.map(k => (
                 <span key={`mod-k-${k}`} className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full text-xs">
                   {k}
                 </span>
@@ -727,11 +750,11 @@ export default function GeneratePage() {
           </div>
 
           {/* Baris 4: Prompt (Jika Ada) */}
-          {prompt.trim() !== "" && (
+          {formData.prompt.trim() !== "" && (
             <div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Custom Prompt</span>
               <div className="bg-[#0A0E1A] border border-slate-800 p-2.5 rounded-lg text-xs text-slate-400 italic line-clamp-3">
-                "{prompt}"
+                "{formData.prompt}"
               </div>
             </div>
           )}

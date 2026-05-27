@@ -6,6 +6,7 @@ import {
   CheckCircle2, FileText, FileBox, AlertCircle, ArrowUpRight, History 
 } from "lucide-react";
 import { sysLog } from "@/utils/logger";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 export default function ScrapPage() {
   // 1. State untuk 5 Input Parameter
@@ -20,6 +21,8 @@ export default function ScrapPage() {
   // 2. State untuk UI & Monitoring
   const [isLoading, setIsLoading] = useState(false);
   const [scrapResult, setScrapResult] = useState<any | null>(null);
+
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   // 3. Handler Perubahan Input
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -74,7 +77,7 @@ export default function ScrapPage() {
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative">
       
       {/* HEADER STICKY */}
-      <div className="sticky top-0 z-50 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-500/20">
             <Pickaxe size={28} />
@@ -163,7 +166,7 @@ export default function ScrapPage() {
 
           {/* Tombol Eksekusi Aksi */}
           <button 
-            onClick={handleScrapExecute}
+            onClick={() => setIsConfirmOpen(true)}
             disabled={isLoading}
             className="mt-8 w-full flex items-center justify-center gap-2 bg-[#E59500] hover:bg-[#E59500]/90 text-[#02040F] font-bold py-3.5 px-4 rounded-xl transition-all shadow-[0_0_15px_rgba(229,149,0,0.3)] hover:shadow-[0_0_25px_rgba(229,149,0,0.5)] disabled:opacity-50 disabled:hover:shadow-[0_0_15px_rgba(229,149,0,0.3)] disabled:cursor-not-allowed"
           >
@@ -336,6 +339,55 @@ export default function ScrapPage() {
 
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleScrapExecute}
+        title="Scrap Article Confirmation"
+        message="Apakah Anda yakin ingin memulai proses penarikan data (scraping) dengan parameter berikut? Proses ini akan berjalan di background."
+        confirmText="Ya, Mulai Scraping"
+        icon={<Pickaxe size={24} />}
+      >
+        {/* Kotak Ringkasan Data yang Diinput User */}
+        <div className="bg-[#02040F] border border-slate-800 rounded-xl p-4 space-y-4 mt-2">
+          
+          {/* Baris 1: Mode */}
+          <div className="flex items-center justify-between border-b border-slate-800/50 pb-3">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Scrap Mode</span>
+            <span className="text-sm font-bold text-[#E59500] bg-[#E59500]/10 px-3 py-1 rounded-md border border-[#E59500]/20 capitalize shadow-inner">
+              {formData.mode}
+            </span>
+          </div>
+
+          {/* Grid Parameter Angka */}
+          <div className="grid grid-cols-2 gap-3">
+            
+            <div className="bg-[#0A0E1A] border border-slate-800/80 p-3 rounded-lg flex justify-between items-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Max Scrap</span>
+              <span className="text-sm font-bold text-slate-200">{formData.max_scrap}</span>
+            </div>
+
+            <div className="bg-[#0A0E1A] border border-slate-800/80 p-3 rounded-lg flex justify-between items-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Overlap Limit</span>
+              <span className="text-sm font-bold text-slate-200">{formData.overlap_limit}</span>
+            </div>
+
+            <div className="bg-[#0A0E1A] border border-slate-800/80 p-3 rounded-lg flex justify-between items-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Start Page</span>
+              <span className="text-sm font-bold text-slate-200">
+                {formData.mode === "older" ? "Auto" : formData.page}
+              </span>
+            </div>
+
+            <div className="bg-[#0A0E1A] border border-slate-800/80 p-3 rounded-lg flex justify-between items-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Limit/Page</span>
+              <span className="text-sm font-bold text-slate-200">{formData.limit_article_per_page}</span>
+            </div>
+            
+          </div>
+        </div>
+      </ConfirmationModal>
     </div>
   );
 }

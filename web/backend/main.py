@@ -330,10 +330,14 @@ async def get_data_cluster(
         if topic not in topic_map:
             topic_map[topic] = {
                 "is_rec": is_rec,
-                "keywords": set()
+                "keywords": set(),
+                "article_count": 0
             }
         elif is_rec:
             topic_map[topic]["is_rec"] = True
+        
+        # Penambahan article_count untuk suatu topik
+        topic_map[topic]["article_count"] += 1
 
         if keywords:
             kw_list = []
@@ -352,7 +356,8 @@ async def get_data_cluster(
             "id": f"topic{i}",
             "name": name,
             "color": "green" if data["is_rec"] else "default",
-            "keywords": list(data["keywords"])[:8]
+            "keywords": list(data["keywords"])[:8],
+            "article_count": data["article_count"]
         }
         for i, (name, data) in enumerate(topic_map.items())
     ]
