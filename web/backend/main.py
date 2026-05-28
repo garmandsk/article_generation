@@ -12,7 +12,7 @@ if "REQUESTS_CA_BUNDLE" in os.environ:
 import requests
 import time
 import json
-from fastapi import FastAPI, Cookie, HTTPException, Response, Depends, Query
+from fastapi import FastAPI, Cookie, HTTPException, Response, Depends, Query, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Annotated
 from schemas.payload import LoginCredentials, ClusteringPayload, GenerationPayload
@@ -21,7 +21,7 @@ from utils import get_from_json, get_from_chromadb, save_to_chromadb
 from config import settings
 from datetime import datetime, timedelta
 from jose import jwt
-from sqlalchemy import func, desc, asc
+from sqlalchemy import func, desc, asc, or_
 from sqlalchemy.orm import Session
 # Pastikan jalur import ini sesuai dengan struktur foldermu
 from config.database import get_db 
@@ -168,6 +168,82 @@ def logout_app(
         "status": "success",
         "message": "Logout berhasil, sesi telah dihapus"
     }
+
+@app.get("/api/v1/data/articles")
+async def get_all_articles(
+    search: str = Query("", description="Kata kunci pencarian"),
+    type: str = Query("all", description="Filter berdasarkan status/tipe"),
+    sort: str = Query("newest", description="Urutan artikel"),
+    limit: str = Query("10", description="Batasan jumlah artikel"),
+    db: Session = Depends(get_db),
+    token: str = Depends(get_mydigilearn_token)
+):
+    try:
+        print(f"search: {search}")
+        print(f"type: {type}")
+        print(f"sort: {sort}")
+        print(f"limit: {limit}")
+        
+        # 1. Base Query
+        query = db.query(Article)
+
+        # 2. Filter by Search Query (Judul atau Konten)
+        if search.strip():
+            search_term = f"%{search.strip()}%"
+            query = query.filter(
+                or_(
+                    Article.title.ilike(search_term),
+                    Article.content.ilike(search_term)
+                )
+            )
+
+        # 3. Filter by Type (Kita asumsikan 'type' di UI sama dengan kolom 'status' di DB)
+        if type != "all":
+            query = query.filter(Article.status == type)
+
+        # 4. Sorting
+        # Asumsikan ada kolom 'created_at'. Jika tidak, gunakan 'id' sebagai representasi waktu masuk.
+        if sort == "newest":
+            query = query.order_by(desc(Article.id)) 
+        elif sort == "oldest":
+            query = query.order_by(asc(Article.id))
+        elif sort == "az":
+            query = query.order_by(asc(Article.title))
+        elif sort == "za":
+            query = query.order_by(desc(Article.title))
+
+        # 5. Limiting
+        if limit != "all":
+            query = query.limit(int(limit))
+
+        # Eksekusi Query
+        articles_db = query.all()
+
+        # Format Data
+        formatted_articles = []
+        for art in articles_db:
+            formatted_articles.append({
+                "id": str(art.id),
+                "title": art.title,
+                "content": art.content,
+                "type": art.status,
+                # Gunakan tanggal hari ini sebagai fallback jika kolom created_at tidak ada
+                "date": art.created_at.strftime("%Y-%m-%d") if hasattr(art, 'created_at') and art.created_at else "2026-05-28"
+            })
+
+        return {
+            "status_code": 200,
+            "status": "success",
+            "message": f"Berhasil menarik {len(formatted_articles)} artikel.",
+            "data": formatted_articles
+        }
+
+    except Exception as e:
+        return {
+            "status_code": 500,
+            "status": "error",
+            "message": str(e)
+        }
 
 # Data keseluruhan
 @app.get("/api/v1/data/stats")

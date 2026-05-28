@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Pickaxe, Network, Sparkles, FileOutput, LogOut, ChevronLeft, ChevronRight, X, Info } from "lucide-react"; 
+import { Home, Pickaxe, Network, Sparkles, FileOutput, LogOut, ChevronLeft, ChevronRight, X, Info, Archive } from "lucide-react"; 
 
 
 export default function LeftSidebar() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true)
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false)
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [infoPage, setInfoPage] = useState(0);
@@ -19,6 +19,7 @@ export default function LeftSidebar() {
     { name: "Scrap", icon: Pickaxe, path: "/dashboard/scrap" },
     { name: "Cluster", icon: Network, path: "/dashboard/cluster" },
     { name: "Generate", icon: Sparkles, path: "/dashboard/generate" },
+    { name: "Storage", icon: Archive, path: "/dashboard/storage" }
   ];
 
   // Data konten info
@@ -116,13 +117,26 @@ export default function LeftSidebar() {
 
       {/* Toggler area */}
       <div className="h-20 flex items-center justify-between px-3 border-b border-slate-700/50">
-        {isLeftSidebarOpen && <span className="text-2xl font-bold tracking-wider text-white">AGC</span>}
-        <button 
-          onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
-          className="p-1 rounded-md hover:bg-slate-700/50 text-slate-300 transition-colors"
-        >
-          {isLeftSidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} className="mx-auto" />}
-        </button>
+        {isLeftSidebarOpen 
+        ? (
+          <>
+          <span className="text-2xl font-bold tracking-wider text-white">AGC</span>
+          <button 
+            onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
+            className="rounded-md hover:bg-slate-700/50 text-slate-300 transition-colors"
+          >
+            <ChevronLeft size={24} /> 
+          </button>
+          </>
+        )
+        : (
+          <button 
+            onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
+            className="rounded-md hover:bg-slate-700/50 text-slate-300 transition-colors mx-auto"
+          >
+            <ChevronRight size={24} className="" />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}

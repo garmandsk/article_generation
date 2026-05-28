@@ -63,3 +63,11 @@ export interface ConfirmationModalProps {
   isDestructive?: boolean;
   children?: React.ReactNode;
 }
+
+export interface ArticleData {
+  id: string;
+  title: string;
+  content: string;
+  type: string;
+  date: string;
+}

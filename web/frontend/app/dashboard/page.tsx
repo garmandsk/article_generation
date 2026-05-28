@@ -18,8 +18,8 @@ import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 const STATUS_COLORS: Record<string, string> = {
   "slug_only": "#64748b",      // Slate (Abu-abu) untuk data mentah
   "vectorized": "#3b82f6",     // Blue
-  "clustered": "#a855f7",      // Purple
-  "generated": "#E59500",      // Gold (Tahap akhir yang paling berharga)
+  "clustered": "#E59500",      // Gold (Tahap akhir yang paling berharga)
+  "generated": "#a855f7",      // Purple
   "outlier_cluster": "#ef4444" // Red (Untuk data yang terbuang)
 };
 
