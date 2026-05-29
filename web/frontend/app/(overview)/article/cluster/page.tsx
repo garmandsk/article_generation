@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Network, BrainCircuit, Play, Settings, Layers, 
   Zap, BarChart3, CheckCircle2, Clock, AlertCircle,
@@ -53,7 +53,7 @@ export default function ClusterPage() {
     }));
   };
 
-  const handleClusterExecute = async () => {
+  const handleClusterExecute = useCallback(async () => {
     setIsLoading(true);
     const exec_time: string | null = "0";
     sysLog("info", "Memulai proses Clustering AI...", exec_time);
@@ -78,7 +78,7 @@ export default function ClusterPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [formData]);
 
   // Kontrol confirm dengan keyboard
   useEffect(() => {
@@ -101,7 +101,7 @@ export default function ClusterPage() {
 
     // Bersihkan listener saat tidak digunakan
     return () => window.removeEventListener("keydown", handleKey);
-  }, [isConfirmOpen])
+  }, [isConfirmOpen, handleClusterExecute])
 
   return (
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative pb-10">
