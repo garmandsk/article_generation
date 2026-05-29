@@ -95,7 +95,7 @@ export default function DashboardHome() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, []);
 
 
   return (
