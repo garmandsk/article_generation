@@ -54,15 +54,17 @@ export default function ConfirmationModal({
   };
   
   // Pantau perubahan dari luar (Prop isOpen)
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRender(true);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsClosing(false);
     } else if (render && !isClosing) {
       // Jika parent memaksa tutup tanpa melalui tombol di dalam modal
       handleModalClosing();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   if (!render) return null;
