@@ -32,17 +32,6 @@ export default function ConfirmationModal({
   const [render, setRender] = useState(isOpen);
   const [isClosing, setIsClosing] = useState(false);
 
-  // Pantau perubahan dari luar (Prop isOpen)
-  useEffect(() => {
-    if (isOpen) {
-      setRender(true);
-      setIsClosing(false);
-    } else if (render && !isClosing) {
-      // Jika parent memaksa tutup tanpa melalui tombol di dalam modal
-      handleModalClosing();
-    }
-  }, [isOpen]);
-
   // 2. Fungsi Eksekusi Animasi 300ms
   const handleModalClosing = () => {
     setIsClosing(true);
@@ -52,7 +41,7 @@ export default function ConfirmationModal({
       onClose(); // Memberi tahu parent untuk mengubah state isOpen menjadi false
     }, 300);
   };
-
+  
   // Fungsi khusus saat pengguna menekan tombol konfirmasi ("Ya, Eksekusi")
   const handleConfirmClosing = () => {
     setIsClosing(true);
@@ -63,6 +52,17 @@ export default function ConfirmationModal({
       onConfirm(); // Jalankan fungsi utama (contoh: handleGenerateExecute)
     }, 300);
   };
+  
+  // Pantau perubahan dari luar (Prop isOpen)
+  useEffect(() => {
+    if (isOpen) {
+      setRender(true);
+      setIsClosing(false);
+    } else if (render && !isClosing) {
+      // Jika parent memaksa tutup tanpa melalui tombol di dalam modal
+      handleModalClosing();
+    }
+  }, [isOpen]);
 
   if (!render) return null;
 

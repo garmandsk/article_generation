@@ -5,8 +5,8 @@ import { Check, Copy } from "lucide-react";
 import { sysLog } from "@/utils/logger";
 
 export const EditableTitleBox = ({
+  titleText,
   initialTitle,
-  titleText
 }: {
   initialTitle: string,
   titleText: string
@@ -27,7 +27,7 @@ export const EditableTitleBox = ({
       setTimeout(() => setIsCopied(false), 2000);
       sysLog("success", "Judul disalin ke clipboard!", exec_time);
     } catch (error) {
-      sysLog("error", "Gagal menyalin judul.", exec_time)
+      sysLog("error", `Gagal menyalin judul: ${error}`, exec_time)
     }
   }
 
@@ -38,7 +38,7 @@ export const EditableTitleBox = ({
   return (
     <>
       <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">Title Article {isEditing && <span className="bg-[#E59500] text-[#02040F] px-1.5 py-0.5 rounded text-[8px] animate-pulse">EDIT MODE</span>}</p>
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">{titleText} {isEditing && <span className="bg-[#E59500] text-[#02040F] px-1.5 py-0.5 rounded text-[8px] animate-pulse">EDIT MODE</span>}</p>
         
         {/* TOMBOL COPY: JUDUL */}
         <button

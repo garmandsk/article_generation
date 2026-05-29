@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Pickaxe, Play, Settings, Database, Activity, Clock, 
   CheckCircle2, FileText, FileBox, AlertCircle, ArrowUpRight, History 
@@ -35,7 +35,7 @@ export default function ScrapPage() {
   };
 
   // 4. Handler Eksekusi Scrap
-  const handleScrapExecute = async () => {
+  const handleScrapExecute = useCallback(async () => {
     setIsLoading(true);
     setScrapResult(null); // Reset hasil sebelumnya
     const exec_time: string | null = "0";
@@ -68,7 +68,7 @@ export default function ScrapPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [formData]);
 
   // Kontrol confirm dengan keyboard
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function ScrapPage() {
 
     // Bersihkan listener saat tidak digunakan
     return () => window.removeEventListener("keydown", handleKey);
-  }, [isConfirmOpen])
+  }, [isConfirmOpen, handleScrapExecute])
 
   return (
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative">

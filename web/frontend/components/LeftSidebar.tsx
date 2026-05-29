@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Pickaxe, Network, Sparkles, FileOutput, LogOut, ChevronLeft, ChevronRight, X, Info, Archive } from "lucide-react"; 
+import { Home, Pickaxe, Network, Sparkles, LogOut, ChevronLeft, ChevronRight, X, Info, Archive } from "lucide-react"; 
 
 
 export default function LeftSidebar() {
@@ -107,7 +107,7 @@ export default function LeftSidebar() {
 
     // Bersihkan listener saat tidak digunakan
     return () => window.removeEventListener("keydown", handleKey);
-  }, [isInfoOpen, isInfoClosing, infoPage])
+  }, [isInfoOpen, isInfoClosing, infoPage, infoContent.length])
   
 
   return (

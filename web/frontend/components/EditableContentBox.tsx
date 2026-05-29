@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { Check, ChevronDown, Copy, FileText, Globe, Code } from "lucide-react";
@@ -42,7 +43,7 @@ export const EditableContentBox = ({
       triggerCopiedAnim("text");
       sysLog("success", 'format "text" bersih disalin (Cocok untuk Notepad/Chat)!', "0");
     } catch (error) {
-      sysLog("error", "Gagal menyalin format text.", "0");
+      sysLog("error", `Gagal menyalin format text: ${error}`, "0");
     }
   };
 
@@ -59,7 +60,7 @@ export const EditableContentBox = ({
       triggerCopiedAnim("html");
       sysLog("success", 'format "html" berhasil disalin (Cocok untuk Medium/Docs)!', "0");
     } catch (error) {
-      sysLog("error", "Browser tidak mendukung Copy HTML, mengalihkan ke Teks.", "0");
+      sysLog("error", `Browser tidak mendukung Copy HTML, mengalihkan ke Teks: ${error}`, "0");
       handleCopyText();
     }
   };
@@ -71,7 +72,7 @@ export const EditableContentBox = ({
       triggerCopiedAnim("markdown");
       sysLog("success", 'format "markdown" berhasil disalin (Cocok untuk Readme/Chatbot)', "0");
     } catch (error) {
-      sysLog("error", 'gagal menyalin teks dengan format "markdown"', "0");
+      sysLog("error", `gagal menyalin teks dengan format "markdown": ${error}`, "0");
     }
   }
 
@@ -97,7 +98,7 @@ export const EditableContentBox = ({
         setContent(markdownConverted);
         sysLog("info", "Format HTML terdeteksi dan berhasil dikonversi ke Markdown.", "0");
       } catch (error) {
-        sysLog("error", "Gagal mengonversi HTML. Memuat teks mentah.", "0");
+        sysLog("error", `Gagal mengonversi HTML. Memuat teks mentah.: ${error}`, "0");
         setContent(initialContent); // Fallback jika gagal
       }
     } else {
@@ -199,12 +200,26 @@ export const EditableContentBox = ({
           >
             <ReactMarkdown
               components={{
-                // Cegah render elemen img jika src-nya kosong atau berisi gambar transparan tadi
                 img: ({ node, ...props }) => {
-                  if (!props.src || (typeof props.src === "string" && props.src.includes('data:image/gif;base64'))) {
+                  // Cegah render elemen img jika src-nya kosong atau berisi gambar transparan/tracking
+                  const imageSrc = props.src as string;
+
+                  // 2. Logika pemblokiran jadi lebih bersih karena tidak perlu 'typeof' lagi
+                  if (!imageSrc || imageSrc.includes('data:image/gif;base64')) {
                     return null; 
                   }
-                  return <img {...props} alt={props.alt || "Article Image"} className="rounded-lg my-4" />;
+                  
+                  return (
+                    <Image 
+                      src={imageSrc} // 🔥 Ambil src secara eksplisit, jangan pakai {...props}
+                      alt={props.alt || "Article Image"} 
+                      width={800} 
+                      height={450} 
+                      unoptimized 
+                      // 🔥 Tambahkan w-full h-auto agar rasio gambar tetap proporsional dan tidak penyok
+                      className="rounded-lg my-4 w-full h-auto object-contain bg-slate-900/50" 
+                    />
+                  );
                 }
               }}
             >{content}</ReactMarkdown>

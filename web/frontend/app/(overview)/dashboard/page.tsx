@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { 
-  Pickaxe, Database, FileText, Server, Network, BrainCircuit, 
-  Sparkles, LayoutGrid, FileBox, RefreshCw, PieChartIcon, BarChartHorizontalIcon, ArrowUpDown, Home, 
+  Pickaxe, Database, FileText, Server, Network, 
+  Sparkles, LayoutGrid, FileBox, RefreshCw, PieChartIcon, 
+  BarChartHorizontalIcon, ArrowUpDown, Home, 
 } from "lucide-react";
 import { 
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
@@ -13,7 +14,6 @@ import { sysLog } from "@/utils/logger";
 import { DashboardStats, DashboardAnalytics } from "@/types/types";
 import { MetricRow, MetricBox } from "@/components/Box";
 import { MetricRowSkeleton, MetricBoxSkeleton, PieChartSkeleton, BarChartSkeleton } from "@/components/Skeleton";
-import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 
 const STATUS_COLORS: Record<string, string> = {
   "slug_only": "#64748b",      // Slate (Abu-abu) untuk data mentah

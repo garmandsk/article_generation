@@ -6,7 +6,7 @@ import {
   Sparkles, Play, CheckCircle2, Clock, AlertCircle, 
   Plus, X, ChevronDown, Lock, EyeOff, Eye
 } from "lucide-react";
-import { GenerateResult, TopicData } from "@/types/types";
+import { GenerateResult, TopicData, TopicSortOption } from "@/types/types";
 import { sysLog } from "@/utils/logger";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import { EditableTitleBox } from "@/components/editableTitleBox";
@@ -22,7 +22,7 @@ export default function GeneratePage() {
   });
   
   const [topicLimit, setTopicLimit] = useState<number | "all">(10);
-  const [topicSort, setTopicSort] = useState<"rec" | "count_asc" | "count_desc" | "name_asc" | "name_desc">("rec");
+  const [topicSort, setTopicSort] = useState<TopicSortOption>("rec");
   const [topicPool, setTopicPool] = useState<TopicData[]>([]);
 
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false); // <-- Tambahkan ini
@@ -352,7 +352,7 @@ export default function GeneratePage() {
                       {/* Sort Dropdown */}
                       <select 
                         value={topicSort} 
-                        onChange={(e) => setTopicSort(e.target.value as any)}
+                        onChange={(e) => setTopicSort(e.target.value as TopicSortOption)}
                         className="bg-[#0A0E1A] text-[10px] text-slate-400 border border-slate-700 rounded px-1.5 py-0.5 outline-none cursor-pointer hover:border-slate-500 transition-colors"
                       >
                         <option value="rec">Recommended</option>
@@ -509,7 +509,7 @@ export default function GeneratePage() {
                       {/* Indikator Jika Mengetik Model Custom */}
                       {!PREDEFINED_MODELS.find(m => m.value === formData.model) && formData.model.trim() !== "" && (
                         <div className="px-4 py-2.5 text-sm text-emerald-400 bg-emerald-500/10 border-t border-emerald-500/20 italic">
-                          Menggunakan model kustom: "{formData.model}"
+                          {`Menggunakan model kustom: "${formData.model}"`}
                         </div>
                       )}
                     </div>
@@ -733,7 +733,7 @@ export default function GeneratePage() {
             <div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Custom Prompt</span>
               <div className="bg-[#0A0E1A] border border-slate-800 p-2.5 rounded-lg text-xs text-slate-400 italic line-clamp-3">
-                "{formData.prompt}"
+                {`"${formData.prompt}"`}
               </div>
             </div>
           )}

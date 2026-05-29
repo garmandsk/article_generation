@@ -129,3 +129,5 @@ export interface GenerateResult {
   },
   exec_time?: string,
 }
+
+export type TopicSortOption = "count_desc" | "count_asc" | "name_asc" | "name_desc" | "rec";

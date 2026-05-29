@@ -1,7 +1,7 @@
 "use client";
 
 import { useState} from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Activity } from "lucide-react"; 
 import LeftSidebar from "@/components/LeftSidebar";
 import RightSidebar from "@/components/RightSidebar";

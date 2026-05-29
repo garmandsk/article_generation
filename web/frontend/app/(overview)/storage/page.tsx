@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { 
-  Archive, Search, Filter, Clock, FileText, 
+  Archive, Search, Filter, Clock, 
   ChevronDown, Database, LayoutGrid
 } from "lucide-react";
 import { EditableTitleBox } from "@/components/editableTitleBox";
@@ -89,7 +89,7 @@ export default function StoragePage() {
 
     // Jalankan fetch setiap salah satu dari 4 variabel/komponen ini berubah
     fetchArticles();
-  }, [debouncedSearch, filterType, sortOrder, limit]);
+  }, [debouncedSearch, filterType, sortOrder, limit, selectedArticleId]);
   
   const selectedArticle = articles.find(a => a.id === selectedArticleId);
 
