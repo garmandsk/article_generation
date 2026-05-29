@@ -46,7 +46,7 @@ export default function StoragePage() {
   // Pemanggilan data
   useEffect(() => {
     const fetchArticles = async () => {
-      let exec_time = "0";
+      const exec_time = "0";
       sysLog("info", "Mencoba mengambil daftar artikel", exec_time);
       setIsLoading(true);
 

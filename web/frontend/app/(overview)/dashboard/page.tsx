@@ -30,7 +30,7 @@ export default function DashboardHome() {
   const [topicSort, setTopicSort] = useState<"desc" | "asc">("desc");
 
   const fetchDashboardStats = async () => {
-    let exec_time: string | null = "0";
+    const exec_time: string | null = "0";
     sysLog("info", "Meminta data stats terbaru dari server...", exec_time);
 
     try {
@@ -55,7 +55,7 @@ export default function DashboardHome() {
 
 
   const fetchDashboardAnalytics = async (currentSort: "desc" | "asc" = "desc") => {
-    let exec_time: string | null = "0";
+    const exec_time: string | null = "0";
     sysLog("info", "Meminta data analytics terbaru dari server...", exec_time);
 
     try {

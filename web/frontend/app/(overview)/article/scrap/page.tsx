@@ -38,7 +38,7 @@ export default function ScrapPage() {
   const handleScrapExecute = async () => {
     setIsLoading(true);
     setScrapResult(null); // Reset hasil sebelumnya
-    let exec_time: string | null = "0";
+    const exec_time: string | null = "0";
 
     const payload = { ...formData };
     if (payload.mode === "older") {

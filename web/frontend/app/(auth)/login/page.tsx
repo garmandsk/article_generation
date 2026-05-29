@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { User, Lock, ArrowRight, AlertCircle } from "lucide-react";
-import { setCookie, getCookie, deleteCookie } from "cookies-next";
 
 export default function LoginPage() { 
   const router = useRouter();
@@ -169,7 +168,7 @@ export default function LoginPage() {
 
       {/* Sign Up */}
       <div className="mt-6 text-center text-sm text-slate-400">
-        Don't have an account?{" "}
+        {`Don't have an account?`}
         <Link href="" className="text-[#E59500] hover:underline font-medium transition-all">
           Sign Up
         </Link>

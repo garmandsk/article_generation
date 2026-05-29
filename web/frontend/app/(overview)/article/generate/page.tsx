@@ -198,7 +198,7 @@ export default function GeneratePage() {
 
   // ================= EKSEKUSI GENERATE =================
   const handleGenerateExecute = async () => {
-    let exec_time = "0";
+    const exec_time = "0";
 
     setIsLoading(true);
     setGenerateResult(null);
@@ -230,7 +230,7 @@ export default function GeneratePage() {
   };
 
   const handleCopyTitle = async () => {
-    let exec_time = "0";
+    const exec_time = "0";
     if (!editedTitle) return;
     try {
       await navigator.clipboard.writeText(editedTitle)
@@ -245,7 +245,7 @@ export default function GeneratePage() {
   // ================= FETCHING INIT DATA =================
   useEffect(() => {
     const fetchInitialData = async () => {
-      let exec_time = "0";
+      const exec_time = "0";
       sysLog("info", "Mencoba mengambil data topik dan keywords dari backend", exec_time)
 
       setIsFetchingTags(true);

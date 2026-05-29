@@ -19,7 +19,7 @@ export const EditableTitleBox = ({
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopyTitle = async () => {
-    let exec_time = "0";
+    const exec_time = "0";
     if (!title) return;
     try {
       await navigator.clipboard.writeText(title)

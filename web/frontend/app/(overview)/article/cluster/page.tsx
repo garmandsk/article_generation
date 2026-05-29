@@ -54,7 +54,7 @@ export default function ClusterPage() {
 
   const handleClusterExecute = async () => {
     setIsLoading(true);
-    let exec_time: string | null = "0";
+    const exec_time: string | null = "0";
     sysLog("info", "Memulai proses Clustering AI...", exec_time);
 
     try {
