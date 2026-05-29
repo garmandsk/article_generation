@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { 
   FileText, Settings, Zap, 
   Sparkles, Play, CheckCircle2, Clock, AlertCircle, 
@@ -190,7 +190,7 @@ export default function GeneratePage() {
   };
 
   // ================= EKSEKUSI GENERATE =================
-  const handleGenerateExecute = async () => {
+  const handleGenerateExecute = useCallback(async () => {
     const exec_time = "0";
 
     setIsLoading(true);
@@ -219,7 +219,7 @@ export default function GeneratePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [formData]);
 
   // ================= FETCHING INIT DATA =================
   useEffect(() => {
@@ -248,7 +248,7 @@ export default function GeneratePage() {
       }
     };
     fetchInitialData();
-  }, []);
+  });
 
   // Kontrol confirm dengan keyboard
   useEffect(() => {
@@ -271,7 +271,7 @@ export default function GeneratePage() {
 
     // Bersihkan listener saat tidak digunakan
     return () => window.removeEventListener("keydown", handleKey);
-  }, [isConfirmOpen])
+  }, [isConfirmOpen, handleGenerateExecute])
 
   return (
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative pb-10">
