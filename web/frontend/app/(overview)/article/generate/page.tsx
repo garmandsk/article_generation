@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   FileText, Settings, Zap, 
   Sparkles, Play, CheckCircle2, Clock, AlertCircle, 
-  Plus, X, ChevronDown, Lock, EyeOff, Eye, Check, Copy
+  Plus, X, ChevronDown, Lock, EyeOff, Eye
 } from "lucide-react";
 import { GenerateResult, TopicData } from "@/types/types";
 import { sysLog } from "@/utils/logger";
@@ -39,13 +39,6 @@ export default function GeneratePage() {
 
   // Modal konfirmasi
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-
-  // State tombol copy
-  const [isTitleCopied, setIsTitleCopied] = useState(false);
-
-  // State editing
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editedTitle, setEditedTitle] = useState("");
   
   // Daftar model utama
   const PREDEFINED_MODELS = [
@@ -219,7 +212,6 @@ export default function GeneratePage() {
       // console.log("result", result);
 
       setGenerateResult(result);
-      setEditedTitle(result.data?.title || "");
       sysLog("success", result.message, result.exec_time);
     } catch (error) {
       sysLog("error", `Gagal generate artikel: ${error}`, exec_time);
@@ -228,19 +220,6 @@ export default function GeneratePage() {
       setIsLoading(false);
     }
   };
-
-  const handleCopyTitle = async () => {
-    const exec_time = "0";
-    if (!editedTitle) return;
-    try {
-      await navigator.clipboard.writeText(editedTitle)
-      setIsTitleCopied(true);
-      setTimeout(() => setIsTitleCopied(false), 2000);
-      sysLog("success", "Judul disalin ke clipboard!", exec_time);
-    } catch (error) {
-      sysLog("error", "Gagal menyalin judul.", exec_time)
-    }
-  }
 
   // ================= FETCHING INIT DATA =================
   useEffect(() => {

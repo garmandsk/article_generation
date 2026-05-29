@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { sysLog } from "@/utils/logger";
 import ConfirmationModal from "@/components/ConfirmationModal";
-import { ClusterResult } from "@/types/types";
+import { ClusterList, ClusterResult } from "@/types/types";
 
 export default function ClusterPage() {
   // 1. State Lengkap sesuai Referensi (5 Group Input)
@@ -390,7 +390,7 @@ export default function ClusterPage() {
                 
                 <div className="space-y-3">
                   {/* Melakukan mapping pada array cluster, dipotong 5 teratas saja */}
-                  {clusterResult.data.cluster.slice(0, 5).map((item: any, index: number) => (
+                  {clusterResult.data.cluster.slice(0, 5).map((item: ClusterList, index: number) => (
                     <div key={item.cluster_id} className="bg-[#02040F] border border-slate-800 p-4 rounded-xl flex items-start justify-between hover:border-slate-600 transition-colors group">
                       
                       {/* Sisi Kiri: Nama & Keyword */}

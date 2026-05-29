@@ -92,7 +92,7 @@ export interface ScrapResult {
   exec_time?: string
 }
 
-interface ClusterList {
+export interface ClusterList {
   cluster_id: number,
   cluster_name: string,
   cluster_keywords: string[],
