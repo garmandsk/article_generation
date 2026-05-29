@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { 
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid 
 } from "recharts";
+import { PieChartData, BarChartData } from "@/types/types";
 
 // Palet warna elegan ala modern dashboard
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"]; 
 
 export default function AnalyticsDashboard() {
-  const [chartData, setChartData] = useState<{ pie_status_data: any[]; bar_topic_data: any[] } | null>(null);
+  const [chartData, setChartData] = useState<{ pie_status_data: PieChartData[]; bar_topic_data: BarChartData[] } | null>(null);
 
   useEffect(() => {
     // Tarik data dari endpoint analitik backend

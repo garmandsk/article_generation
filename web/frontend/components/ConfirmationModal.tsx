@@ -52,7 +52,7 @@ export default function ConfirmationModal({
       onConfirm(); // Jalankan fungsi utama (contoh: handleGenerateExecute)
     }, 300);
   };
-  
+
   // Pantau perubahan dari luar (Prop isOpen)
   useEffect(() => {
     if (isOpen) {
@@ -62,7 +62,7 @@ export default function ConfirmationModal({
       // Jika parent memaksa tutup tanpa melalui tombol di dalam modal
       handleModalClosing();
     }
-  }, [isOpen]);
+  }, [isOpen, handleModalClosing, isClosing, render]);
 
   if (!render) return null;
 
