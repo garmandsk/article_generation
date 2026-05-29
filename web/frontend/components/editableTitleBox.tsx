@@ -14,6 +14,7 @@ export const EditableTitleBox = ({
   // State title
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(initialTitle);
+  const [prevInitialTitle, setPrevInitialTitle] = useState(initialTitle)
 
   // State salin
   const [isCopied, setIsCopied] = useState(false);
@@ -31,9 +32,10 @@ export const EditableTitleBox = ({
     }
   }
 
-  useEffect(() => {
+  if (initialTitle !== prevInitialTitle) {
+    setPrevInitialTitle(initialTitle);
     setTitle(initialTitle);
-  }, [initialTitle]);
+  }
 
   return (
     <>

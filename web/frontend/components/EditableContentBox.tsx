@@ -200,7 +200,7 @@ export const EditableContentBox = ({
           >
             <ReactMarkdown
               components={{
-                img: ({ node, ...props }) => {
+                img: ({ ...props }) => {
                   // Cegah render elemen img jika src-nya kosong atau berisi gambar transparan/tracking
                   const imageSrc = props.src as string;
 

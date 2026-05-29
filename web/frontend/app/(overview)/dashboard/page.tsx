@@ -76,17 +76,6 @@ export default function DashboardHome() {
     }
   }
 
-  const fetchData = async () => {
-    setIsLoading(true);
-
-    await Promise.all([
-      fetchDashboardStats(),
-      fetchDashboardAnalytics()
-    ]);
-
-    setIsLoading(false)
-  }
-
   const handleToggleSort = () => {
     const newSortMode = topicSort === "desc" ? "asc" : "desc";
     setTopicSort(newSortMode);
@@ -94,6 +83,16 @@ export default function DashboardHome() {
   }
 
   useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+
+      await Promise.all([
+        fetchDashboardStats(),
+        fetchDashboardAnalytics()
+      ]);
+
+      setIsLoading(false)
+    }
     fetchData();
   }, []);
 

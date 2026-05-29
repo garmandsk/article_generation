@@ -54,6 +54,7 @@ export default function ConfirmationModal({
   };
   
   // Pantau perubahan dari luar (Prop isOpen)
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => {
     if (isOpen) {
       setRender(true);
