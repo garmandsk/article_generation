@@ -76,7 +76,7 @@ def extract_info_cluster(raw_text):
     cluster_name = keywords[0].title()
     return cluster_id, cluster_name, keywords
 
-def cluster_articles(payload, token):
+def cluster_articles(payload):
     start_time = time.perf_counter()
 
     print("📦 Menarik Vektor dari Database Lokal...")
@@ -143,9 +143,9 @@ def cluster_articles(payload, token):
         verbose=True
     )
 
-    # Proses cluster
+    # Proses cluster (Training dari awal)
     topic, probabilities = topic_model.fit_transform(
-        docs,
+        documents=docs,
         embeddings=embedding_vectors
     )
 

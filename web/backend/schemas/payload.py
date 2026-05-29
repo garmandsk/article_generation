@@ -33,7 +33,14 @@ class CTFIDFConfig(BaseModel):
     bm25_weighting: bool = Field(default=True) 
     reduce_frequent_words: bool = Field(default=True)
 
-class ClusteringPayload(BaseModel):
+class ScrapPayload(BaseModel):
+    mode: str = Field("both"),
+    max_scrap: int = Field(10),
+    overlap_limit: int = Field(10),
+    page: int = Field(1),
+    limit_article_per_page: int = Field(10),
+
+class ClusterPayload(BaseModel):
     recommend_target: int = Field(3)
     min_cf_range: float = Field(0.5)
     embedding_model_config: EmbeddingModelConfig = EmbeddingModelConfig()
@@ -42,7 +49,7 @@ class ClusteringPayload(BaseModel):
     vectorizer_config: VectorizerConfig = VectorizerConfig()
     ctfidf_config: CTFIDFConfig = CTFIDFConfig()
 
-class GenerationPayload(BaseModel):
+class GeneratePayload(BaseModel):
     topics: list[str] = Field(["Kondisi Ekonomi", "Ekonomi"], description="Daftar topik yang dipilih pengguna")
     keywords: list[str] = Field(["Ekonomi", "Kondisi Ekonomi", "Biaya Hidup"], description="Daftar kata kunci untuk memandu artikel")
     prompt: str = Field("Fokuskan pada dampak ekonomi sirkular bagi UMKM lokal", description="Instruksi spesifik atau fokus artikel")

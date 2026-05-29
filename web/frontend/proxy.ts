@@ -11,7 +11,11 @@ export async function proxy(request: NextRequest) {
   const mydigilearn_token = request.cookies.get('mydigilearn_token')?.value;
   const path = request.nextUrl.pathname;
   
-  const isProtectedRoute = path.startsWith('/dashboard');
+  const isProtectedRoute = 
+    path.startsWith('/dashboard') ||
+    path.startsWith('/storage') ||
+    path.startsWith('/article');
+
   const isAuthRoute = path === '/login' || path === '/signup';
   
   // --- LOGIKA VALIDASI TOKEN ---
@@ -37,6 +41,9 @@ export async function proxy(request: NextRequest) {
     // Opsional: Hapus cookie token yang tidak valid tersebut agar bersih
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.delete('token');
+    response.cookies.delete('agc_token');
+    response.cookies.delete('mydigilearn_token');
+
     return response;
   }
 
@@ -54,6 +61,7 @@ export const config = {
     '/login',
     '/signup',
     '/dashboard',
-    '/dashboard/:path*', 
+    '/storage',
+    '/article/:path*', 
   ],
 };

@@ -15,7 +15,7 @@ import json
 from fastapi import FastAPI, Cookie, HTTPException, Response, Depends, Query, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Annotated
-from schemas.payload import LoginCredentials, ClusteringPayload, GenerationPayload
+from schemas.payload import LoginCredentials, ScrapPayload, ClusterPayload, GeneratePayload
 from services import scrap_articles, scrap_list_articles, scrap_content_articles, cluster_articles, generate_article
 from utils import get_from_json, get_from_chromadb, save_to_chromadb
 from config import settings
@@ -170,7 +170,7 @@ def logout_app(
     }
 
 @app.get("/api/v1/data/articles")
-async def get_all_articles(
+async def get_data_articles(
     search: str = Query("", description="Kata kunci pencarian"),
     type: str = Query("all", description="Filter berdasarkan status/tipe"),
     sort: str = Query("newest", description="Urutan artikel"),
@@ -204,9 +204,9 @@ async def get_all_articles(
         # 4. Sorting
         # Asumsikan ada kolom 'created_at'. Jika tidak, gunakan 'id' sebagai representasi waktu masuk.
         if sort == "newest":
-            query = query.order_by(desc(Article.id)) 
+            query = query.order_by(desc(Article.created_at), desc(Article.id)) 
         elif sort == "oldest":
-            query = query.order_by(asc(Article.id))
+            query = query.order_by(asc(Article.created_at), asc(Article.id))
         elif sort == "az":
             query = query.order_by(asc(Article.title))
         elif sort == "za":
@@ -247,9 +247,9 @@ async def get_all_articles(
 
 # Data keseluruhan
 @app.get("/api/v1/data/stats")
-def data_stats(
+def get_data_stats(
+    db: Session = Depends(get_db), 
     token: str = Depends(get_mydigilearn_token),
-    db: Session = Depends(get_db) 
 ):  
     start_time = time.perf_counter()
     print("== Mengambil Statistik Dashboard dari PostgreSQL ==")
@@ -318,10 +318,10 @@ def data_stats(
 
 # Data analytics
 @app.get("/api/v1/data/analytics")
-def data_analytics(
-    token: str = Depends(get_mydigilearn_token),
+def get_data_analytics(
+    topic_sort : str = Query("desc"),
     db: Session = Depends(get_db),
-    topic_sort : str = Query("desc")
+    token: str = Depends(get_mydigilearn_token),
 ):
     start_time = time.perf_counter()
     # print(token)
@@ -383,8 +383,8 @@ def data_analytics(
 # Data Cluster
 @app.get("/api/v1/data/cluster")
 async def get_data_cluster(
+    db: Session = Depends(get_db),
     token: str = Depends(get_mydigilearn_token),
-    db: Session = Depends(get_db)
 ):  
     start_time = time.perf_counter()
 
@@ -434,6 +434,7 @@ async def get_data_cluster(
             "color": "green" if data["is_rec"] else "default",
             "keywords": list(data["keywords"])[:8],
             "article_count": data["article_count"]
+            
         }
         for i, (name, data) in enumerate(topic_map.items())
     ]
@@ -454,162 +455,60 @@ async def get_data_cluster(
     }
 
 # Scraping
-@app.post("/api/v1/run/scrap/articles")
+@app.post("/api/v1/run/scrap")
 # Cookie, query param
-async def run_scrap_articles(
+async def run_scrap(
+    payload: ScrapPayload,
+    response: Response,
     token: str = Depends(get_mydigilearn_token), 
-    mode: str = Query("both"),
-    max_scrap: int = Query(10),
-    overlap_limit: int = Query(10),
-    page: int = Query(1),
-    limit_article_per_page: int = Query(10)
 ):  
-    print(f"max_scrap dari query: {max_scrap}")
-    response = await scrap_articles(token, mode, max_scrap, overlap_limit, page, limit_article_per_page)
-    return response
+    # print(f"max_scrap dari query: {max_scrap}")
+
+    result = await scrap_articles(
+        payload=payload,
+        token=token, 
+    )
+
+    response.status_code = result["status_code"]
+
+    return result
 
 
 # Clustering
 @app.post("/api/v1/run/cluster")
 # Cookie
 def run_cluster(
-    payload: ClusteringPayload,
+    payload: ClusterPayload,
+    response: Response,
     token: str = Depends(get_mydigilearn_token)
 ):
-    print(f"Payload clustering: \n{payload}")
-    response = cluster_articles(payload, token)
-    return response
+    # print(f"Payload clustering: \n{payload}")
+    result = cluster_articles(payload)
+
+    response.status_code = result["status_code"]
+
+    return result
 
 # Generating
 @app.post("/api/v1/run/generate")
 # Cookie
 async def run_generate(
-    payload: GenerationPayload,
+    payload: GeneratePayload,
+    response: Response,
     token: str = Depends(get_mydigilearn_token),
 ):
-    print(f"payload: \n{payload}")
+    # return {
+    #     "status_code": 400,
+    #     "status": "fail",
+    #     "message": "oke, gagal"
+    # }
+    # print(f"payload: \n{payload}")
 
-    payloadJson = payload.json()
-    print(f"payload json: \n${payloadJson}")
+    # payloadJson = payload.json()
+    # print(f"payload json: \n${payloadJson}")
     
-    response = await generate_article(payload.topics, payload.keywords, payload.prompt, payload.model, payload.model_api_key)
-    return response
+    result = await generate_article(payload)
 
-# ==================
-# Data Articles
-@app.get("/api/v1/data/articles")
-# Cookie
-def data_articles(
-    token: str = Depends(get_mydigilearn_token),
-    limit: int = Query(10),
-    offset: int = Query(0)
-):    
-    # Cek data list dan content
-    data_list_article = get_from_json(settings.FILE_LIST_PATH)
-    data_content_article = get_from_json(settings.FILE_CONTENT_PATH)
+    response.status_code = result["status_code"]
 
-    # Cek database
-    print("📦 Menarik Vektor dari Database Lokal...")
-    print(f"DB status: {settings.DB_NAME}")
-    print(f"DB Path: {settings.DB_PATH}")
-    collection = get_from_chromadb(settings.DB_PATH, settings.DB_NAME)
-    data_db = collection.get(
-        limit=limit,
-        offset=offset,
-        include=['documents', 'metadatas'])
-    print("Total data di ChromaDB:", collection.count())
-    
-    return {
-        "status_code": 200,
-        "status": "success",
-        "message": "data artikel berhasil diambil",
-        "data": {
-            "total_data_list": len(data_list_article),
-            "total_data_content": len(data_content_article),
-            "chromadb": {
-                "total_data_db": collection.count(),
-                "data_db": data_db,
-                "limit": limit,
-                "offset": offset,
-            }
-        }
-    }
-
-# Data topics
-@app.get("/api/v1/data/topics")
-# Cookie
-async def data_topics(
-    token: str = Depends(get_mydigilearn_token),
-    limit: int = Query(10),
-    offset: int = Query(0)
-):       
-    data_topics = get_from_json(settings.FILE_TOPIC_DATA_PATH)
-    
-    # Cluster == topik
-    metadatas_topics = data_topics["metadatas"]
-    clusters_topics = data_topics["clusters"]
-
-    selected_clusters_topics = clusters_topics[offset: offset + limit]
-        
-    # Jika berhasil, kembalikan data
-    return {
-        "status_code": 200,
-        "status": "success",
-        "message": "Data topik berhasil diambil",
-        "data": {
-            "metadatas": metadatas_topics,
-            "topics": selected_clusters_topics,
-            "limit": limit,
-            "offset": offset,
-        }
-    }
-
-# Sync dengan data list dan content
-@app.post("/api/v1/sync/db")
-def sync_db(token: str = Depends(get_mydigilearn_token)):
-    data_list = get_from_json(settings.FILE_LIST_PATH)
-    total_data_list = len(data_list)
-
-    data_content = get_from_json(settings.FILE_CONTENT_PATH)
-    total_data_content = len(data_content)
-
-    save_to_chromadb(token, data_content)
-
-    data_content = get_from_json(settings.FILE_CONTENT_PATH)
-    total_data_content = len(data_content)
-
-    collection = get_from_chromadb(settings.DB_PATH, settings.DB_NAME)
-    total_data_db = collection.count()
-
-    return {
-        "status_code": 200,
-        "status": "success",
-        "message": f"sinkronisasi database berhasil",
-        "data": {
-            "total_data_list": total_data_list,
-            "total_data_content": total_data_content,
-            "total_data_db": total_data_db
-        }
-    }
-
-@app.post("/api/v1/run/scrap/list")
-# Cookie, query param
-async def run_scrap_list_articles(
-    token: str = Depends(get_mydigilearn_token), 
-    mode: str = Query("both"),
-    max_scrap: int = Query(10),
-):  
-    response = await scrap_list_articles(token, mode, max_scrap)
-    return response
-
-# Scrap content atau sync dengan data list
-@app.post("/api/v1/run/scrap/content")
-# Cookie, query param
-def run_scrap_content_articles(
-    token: str = Depends(get_mydigilearn_token), 
-    max_scrap: int = Query(10),
-):  
-    headers = settings.BASE_HEADERS.copy()
-    headers["Authorization"] = f"Bearer {token}"
-    response = scrap_content_articles(headers, max_scrap)
-    return response
+    return result

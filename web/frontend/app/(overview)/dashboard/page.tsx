@@ -40,20 +40,16 @@ export default function DashboardHome() {
         credentials: "include"
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      // exec_time = response.headers.get("X-Process-Time")
-      const response_json = await response.json();
-      const exec_time = response_json.exec_time || response.headers.get("X-Process-Time") || "0"
-      console.log("exec_time", exec_time);
+      const result = await response.json();
+      console.log("result", result);
 
-      const data: DashboardStats = response_json.data;
+      if (result.status_code != 200) throw new Error(result.message || result.detail);
+      
+      const data: DashboardStats = result.data;
       setStats(data)
-      sysLog("success", "Berhasil menyinkronkan data stats dashboard dari Backend.", exec_time);
+      sysLog("success", result.message, result.exec_time);
     } catch (error) {
-      sysLog("error", `Gagal mengambil data dari server: ${error}`, exec_time);
+      sysLog("error", `Gagal mengambil data stats dari server: ${error}`, exec_time);
     } 
   };
 
@@ -69,19 +65,14 @@ export default function DashboardHome() {
         credentials: "include"
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const result = await response.json();
+      if (result.status_code != 200) throw new Error(result.message || result.detail);
 
-      const responseJson = await response.json();
-      const exec_time = responseJson.exec_time;
-      console.log("exec_time", exec_time)
-
-      const data = responseJson.data;
+      const data: DashboardAnalytics = result.data;
       setCharts(data);
-      sysLog("success", "Berhasil menyinkronkan data analytics dashboard dari Backend.", exec_time);
+      sysLog("success", result.message, result.exec_time);
     } catch (error) {
-      sysLog("error", `Gagal mengambil data dari server: ${error}`, exec_time);
+      sysLog("error", `Gagal mengambil data analytics dari server: ${error}`, exec_time);
     }
   }
 
@@ -111,7 +102,7 @@ export default function DashboardHome() {
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative">
       
       {/* HEADER */}
-      <div className="sticky top-0 z-10 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm flex items-center justify-between">
+      <div className="bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-blue-500/10 rounded-xl text-gray-400 border border-blue-500/20">
             <Home size={28} />

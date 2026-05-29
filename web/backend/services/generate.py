@@ -104,17 +104,32 @@ async def generate_article_from_gemini(client, model, payload):
             }
         }
     except Exception as e:
+        error_msg = str(e)
+        
+        status_code = 500 # Default Server Error
+        if "API_KEY_INVALID" in error_msg or "400" in error_msg or "API key not valid" in error_msg:
+            status_code = 401 # Unauthorized
+            error_msg = "API Key tidak valid atau tidak ditemukan."
+        elif "quota" in error_msg.lower() or "429" in error_msg:
+            status_code = 429 # Too Many Requests
+            error_msg = "Kuota API habis atau melampaui batas request (Rate Limit)."
+            
         return {
-            "status_code": 500,
+            "status_code": status_code,
             "status": "error",
-            "message": str(e)
+            "message": error_msg # Kirim pesan yang sudah diterjemahkan
         }
 
-async def generate_article(topics, keywords, prompt, model, model_api_key):
+async def generate_article(payload):
     start_time = time.perf_counter()
 
-    # Model Selection
-    # client, model = client_gemini(settings.MODEL_GEN_GEMINI_API_KEY, 2)
+    # Pembongkaran payload
+    topics = payload.topics 
+    keywords = payload.keywords 
+    prompt = payload.prompt 
+    model = payload.model
+    model_api_key = payload.model_api_key
+
     client = genai.Client(api_key=model_api_key)
     payload = {
         "topics": topics,
@@ -129,15 +144,22 @@ async def generate_article(topics, keywords, prompt, model, model_api_key):
 
     max_try = 5
     try_count = 1
+    response_generate = None
 
     while try_count <= max_try:
         print(f"🔄 try_count ke-{try_count} dari {max_try}...")
         
         response_generate = await generate_article_from_gemini(client, model, payload)
+        print(f"response_generate: {response_generate}")
         
         # Jika sukses (code 200), langsung keluar dari loop!
         if response_generate["status_code"] == 200:
             print("🎉 AI berhasil membuat artikel JSON dengan format yang benar!")
+            break
+
+        # Cek error api key salah/kuota habis
+        if response_generate["status_code"] in [401, 429]:
+            print(f"🛑 FATAL ERROR: {response_generate['message']}")
             break
             
         # Jika gagal, tampilkan pesan error-nya
@@ -153,12 +175,16 @@ async def generate_article(topics, keywords, prompt, model, model_api_key):
     # --- PENGECEKAN HASIL AKHIR ---
     print("-" * 40)
     if response_generate and response_generate["status_code"] != 200:
-        print("❌ GAGAL TOTAL. AI terus-menerus memberikan format yang salah, model sedang high demand, atau server sedang down.")
-        print("Saran: Coba periksa kembali API Key, koneksi internet, Ganti model karena sedang high demand, atau sederhanakan Prompt-nya.")
+        print("❌ GAGAL TOTAL.")
+
+        end_time = time.perf_counter()
+        exec_time_sec = str(round(end_time - start_time)) + "s"
+
         return {
-            "status_code": 400,
+            "status_code": response_generate["status_code"] if response_generate else 500,
             "status": "fail",
-            "message": f"❌ GAGAL TOTAL. AI terus-menerus memberikan format yang salah, model sedang high demand, atau server sedang down."
+            "message": response_generate["message"] if response_generate else "Terjadi kesalahan internal (Unknown Error)",
+            "exec_time": exec_time_sec
         }
 
     print("✅ PROSES SELESAI DENGAN SUKSES!")

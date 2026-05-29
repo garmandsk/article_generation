@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Pickaxe, Play, Settings, Database, Activity, Clock, 
   CheckCircle2, FileText, FileBox, AlertCircle, ArrowUpRight, History 
@@ -49,22 +49,19 @@ export default function ScrapPage() {
 
     try {
       // Sesuaikan URL ini dengan endpoint FastAPI Scrap milikmu
-      const scrapAPI = `http://localhost:8000/api/v1/run/scrap/articles?mode=${payload.mode}&max_scrap=${payload.max_scrap}&overlap_limit=${payload.overlap_limit}&page=${payload.page}&limit_article_per_page=${payload.limit_article_per_page}`; 
-      
+      const scrapAPI = `http://localhost:8000/api/v1/run/scrap`; 
       const response = await fetch(scrapAPI, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
         credentials: "include"
       });
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-      const responseJson = await response.json();
-      exec_time = responseJson.exec_time || response.headers.get("X-Process-Time") || "0";
       
-      setScrapResult(responseJson);
-      sysLog("success", `Proses Scraping berhasil diselesaikan.`, exec_time);
+      const result = await response.json();
+      if (result.status_code) throw new Error(result.message || result.detail);
 
+      setScrapResult(result);
+      sysLog("success", result.message, result.exec_time);
     } catch (error) {
       sysLog("error", `Gagal melakukan scraping: ${error}`, exec_time);
       setScrapResult({ error: true, message: String(error) });
@@ -73,11 +70,35 @@ export default function ScrapPage() {
     }
   };
 
+  // Kontrol confirm dengan keyboard
+  useEffect(() => {
+    if (!isConfirmOpen) return;
+
+    const handleKey = (e: KeyboardEvent) => {
+      // saat enter ditekan -> eksekusi
+      if (e.key === "Enter"){
+          e.preventDefault();
+          handleScrapExecute();
+          setIsConfirmOpen(false);
+        } 
+      // saat esc ditekan -> batal
+        else if (e.key === "Escape"){
+        setIsConfirmOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKey);
+
+    // Bersihkan listener saat tidak digunakan
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isConfirmOpen])
+
   return (
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative">
       
       {/* HEADER STICKY */}
-      <div className="sticky top-0 z-10 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
+      <div className="bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
+
         <div className="flex items-center gap-4">
           <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-500/20">
             <Pickaxe size={28} />
@@ -93,99 +114,102 @@ export default function ScrapPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 pb-6 gap-6 relative">
         
         {/* ================= AREA KIRI: CONFIGURATION PANEL ================= */}
-        <div className="lg:col-span-4 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl flex flex-col h-fit sticky top-32">
-          <div className="flex items-center gap-2 mb-6 border-b border-slate-700/50 pb-4">
-            <Settings size={20} className="text-slate-400" />
-            <h3 className="text-lg font-semibold text-white">Configure</h3>
-          </div>
-
-          <div className="space-y-5 flex-1">
-            {/* 1. Input Mode */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Scrap Mode</label>
-              <select 
-                name="mode" 
-                value={formData.mode} 
-                onChange={handleInputChange}
-                disabled={isLoading}
-                className="w-full bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-[#E59500] focus:border-[#E59500] block p-3 transition-colors disabled:opacity-50"
-              >
-                <option value="both">Both (Older & Newer)</option>
-                <option value="newer">Newer (Terbaru Saja)</option>
-                <option value="older">Older (Data Lama)</option>
-              </select>
+        <div className="sticky top-32 lg:col-span-4 space-y-6 max-h-[calc(100vh-140px)] overflow-y-auto pr-2 custom-scrollbar">
+          
+          <div className="bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl">
+            <div className="flex items-center gap-2 mb-6 border-b border-slate-700/50 pb-4">
+              <Settings size={20} className="text-slate-400" />
+              <h3 className="text-lg font-semibold text-white">Configure</h3>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {/* 2. Input Max Scrap */}
+            <div className="space-y-5 flex-1">
+              {/* 1. Input Mode */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Max Scrap</label>
-                <input 
-                  type="number" name="max_scrap" 
-                  value={formData.max_scrap} onChange={handleInputChange} disabled={isLoading}
-                  className="w-full bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-[#E59500] focus:border-[#E59500] block p-3 disabled:opacity-50" 
-                />
+                <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Scrap Mode</label>
+                <select 
+                  name="mode" 
+                  value={formData.mode} 
+                  onChange={handleInputChange}
+                  disabled={isLoading}
+                  className="w-full bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-[#E59500] focus:border-[#E59500] block p-3 transition-colors disabled:opacity-50"
+                >
+                  <option value="both">Both (Older & Newer)</option>
+                  <option value="newer">Newer (Terbaru Saja)</option>
+                  <option value="older">Older (Data Lama)</option>
+                </select>
               </div>
 
-              {/* 3. Input Overlap Limit */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Overlap Limit</label>
-                <input 
-                  type="number" name="overlap_limit" 
-                  value={formData.overlap_limit} onChange={handleInputChange} disabled={isLoading}
-                  className="w-full bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-[#E59500] focus:border-[#E59500] block p-3 disabled:opacity-50" 
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {/* 2. Input Max Scrap */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Max Scrap</label>
+                  <input 
+                    type="number" name="max_scrap" 
+                    value={formData.max_scrap} onChange={handleInputChange} disabled={isLoading}
+                    className="w-full bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-[#E59500] focus:border-[#E59500] block p-3 disabled:opacity-50" 
+                  />
+                </div>
 
-              {/* 4. Input Page */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Start Page</label>
-                <input 
-                  type={formData.mode == "older" ? "text" : "number"} 
-                  name="page" 
-                  value={formData.mode == "older" ? "Auto (System)" : formData.page} 
-                  onChange={handleInputChange} 
-                  disabled={isLoading || formData.mode === "older"}
-                  className={`w-full bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-[#E59500] focus:border-[#E59500] block p-3 transition-all ${
-                    formData.mode === "older" ? "cursor-not-allowed bg-slate-950 text-slate-500 border-dashed" : "disabled:opacity-50"
-                  }`}
-                />
-              </div>
+                {/* 3. Input Overlap Limit */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Overlap Limit</label>
+                  <input 
+                    type="number" name="overlap_limit" 
+                    value={formData.overlap_limit} onChange={handleInputChange} disabled={isLoading}
+                    className="w-full bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-[#E59500] focus:border-[#E59500] block p-3 disabled:opacity-50" 
+                  />
+                </div>
 
-              {/* 5. Input Limit per Page */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Limit / Page</label>
-                <input 
-                  type="number" name="limit_article_per_page" 
-                  value={formData.limit_article_per_page} onChange={handleInputChange} disabled={isLoading}
-                  className="w-full bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-[#E59500] focus:border-[#E59500] block p-3 disabled:opacity-50" 
-                />
+                {/* 4. Input Page */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Start Page</label>
+                  <input 
+                    type={formData.mode == "older" ? "text" : "number"} 
+                    name="page" 
+                    value={formData.mode == "older" ? "Auto (System)" : formData.page} 
+                    onChange={handleInputChange} 
+                    disabled={isLoading || formData.mode === "older"}
+                    className={`w-full bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-[#E59500] focus:border-[#E59500] block p-3 transition-all ${
+                      formData.mode === "older" ? "cursor-not-allowed bg-slate-950 text-slate-500 border-dashed" : "disabled:opacity-50"
+                    }`}
+                  />
+                </div>
+
+                {/* 5. Input Limit per Page */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Limit / Page</label>
+                  <input 
+                    type="number" name="limit_article_per_page" 
+                    value={formData.limit_article_per_page} onChange={handleInputChange} disabled={isLoading}
+                    className="w-full bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-[#E59500] focus:border-[#E59500] block p-3 disabled:opacity-50" 
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Tombol Eksekusi Aksi */}
-          <button 
-            onClick={() => setIsConfirmOpen(true)}
-            disabled={isLoading}
-            className="mt-8 w-full flex items-center justify-center gap-2 bg-[#E59500] hover:bg-[#E59500]/90 text-[#02040F] font-bold py-3.5 px-4 rounded-xl transition-all shadow-[0_0_15px_rgba(229,149,0,0.3)] hover:shadow-[0_0_25px_rgba(229,149,0,0.5)] disabled:opacity-50 disabled:hover:shadow-[0_0_15px_rgba(229,149,0,0.3)] disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-[#02040F]/30 border-t-[#02040F] rounded-full animate-spin" />
-                <span>Scraping Data...</span>
-              </>
-            ) : (
-              <>
-                <Play size={18} className="fill-current" />
-                <span>Execute Scrap</span>
-              </>
-            )}
-          </button>
+            {/* Tombol Eksekusi Aksi */}
+            <button 
+              onClick={() => setIsConfirmOpen(true)}
+              disabled={isLoading}
+              className="mt-8 w-full flex items-center justify-center gap-2 bg-[#E59500] hover:bg-[#E59500]/90 text-[#02040F] font-bold py-3.5 px-4 rounded-xl transition-all shadow-[0_0_15px_rgba(229,149,0,0.3)] hover:shadow-[0_0_25px_rgba(229,149,0,0.5)] disabled:opacity-50 disabled:hover:shadow-[0_0_15px_rgba(229,149,0,0.3)] disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-[#02040F]/30 border-t-[#02040F] rounded-full animate-spin" />
+                  <span>Scraping Data...</span>
+                </>
+              ) : (
+                <>
+                  <Play size={18} className="fill-current" />
+                  <span>Execute Scrap</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* ================= AREA KANAN: MONITORING & RESULT ================= */}
-        <div className="lg:col-span-8 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl flex flex-col min-h-[500px]">
+        <div className="lg:col-span-8 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl flex flex-col min-h-[600px]">
           <div className="flex items-center justify-between mb-6 border-b border-slate-700/50 pb-4">
             <div className="flex items-center gap-2">
               <Activity size={20} className="text-blue-400" />

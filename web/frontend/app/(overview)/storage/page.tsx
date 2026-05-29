@@ -46,6 +46,8 @@ export default function StoragePage() {
   // Pemanggilan data
   useEffect(() => {
     const fetchArticles = async () => {
+      let exec_time = "0";
+      sysLog("info", "Mencoba mengambil daftar artikel", exec_time);
       setIsLoading(true);
 
       try {
@@ -56,7 +58,7 @@ export default function StoragePage() {
           limit: limit
         });
 
-        console.log("qParams", queryParams);
+        // console.log("qParams", queryParams);
 
         const dataArticlesAPI = `http://localhost:8000/api/v1/data/articles?${queryParams.toString()}`;
         const response = await fetch(dataArticlesAPI, {
@@ -64,12 +66,11 @@ export default function StoragePage() {
           credentials: "include"
         });
 
-        if (!response.ok) throw new Error("Gagal mengambil data dari server");
-
         const result = await response.json();
-        setArticles(result.data);
+        if (result.status_code != 200) throw new Error(result.message || result.detail);
 
-        console.log("result", result)
+        setArticles(result.data);
+        sysLog("success", result.message, result.exec_time);
 
         // Otomatis select artikel pertama jika ada artikel
         if (result.data.length > 0) {
@@ -79,7 +80,7 @@ export default function StoragePage() {
           setSelectedArticleId(null);
         }
       } catch (error) {
-        sysLog("error", "Gagal memuat daftar storage artikel.", "0");
+        sysLog("error", `Gagal memuat daftar storage artikel: ${error}`, exec_time);
         setArticles([]);
       } finally {
         setIsLoading(false);
@@ -96,13 +97,13 @@ export default function StoragePage() {
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative pb-10">
 
       {/* ================= HEADER STICKY ================= */}
-      <div className="sticky top-0 z-10 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
+      <div className="bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-xl text-cyan-400 bg-cyan-500/10 border border-blue-500/20 shadow-inner">
             <Archive size={28} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white tracking-wide">Article Storage</h2>
+            <h2 className="text-2xl font-bold text-white tracking-wide">Storage Overview</h2>
             <p className="text-sm text-slate-400 mt-1">Kelola, cari, dan tinjau kembali artikel yang telah disimpan di database.</p>
           </div>
         </div>

@@ -22,7 +22,7 @@ export default function GeneratePage() {
   });
   
   const [topicLimit, setTopicLimit] = useState<number | "all">(10);
-  const [topicSort, setTopicSort] = useState<"count_asc" | "count_desc" | "name_asc" | "name_desc">("count_desc");
+  const [topicSort, setTopicSort] = useState<"rec" | "count_asc" | "count_desc" | "name_asc" | "name_desc">("rec");
   const [topicPool, setTopicPool] = useState<TopicData[]>([]);
 
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false); // <-- Tambahkan ini
@@ -62,16 +62,24 @@ export default function GeneratePage() {
     let filtered = topicPool.filter(t => !formData.topics.includes(t.name));
 
     // Sorting
-    filtered.sort((a, b) => {
-      const countA = a.article_count || 0;
-      const countB = b.article_count || 0;
-
-      if (topicSort === "count_asc") return countA - countB;
-      if (topicSort === "count_desc") return countB - countA;
-      if (topicSort === "name_asc") return a.name.localeCompare(b.name);
-      if (topicSort === "name_desc") return b.name.localeCompare(a.name);
-      return 0;
-    });
+    if (topicSort === "rec") {
+      filtered = filtered.filter(t => t.color === "green");
+      
+      // Urutkan berdasarkan jumlah terdikit
+      filtered.sort((a, b) => (a.article_count || 0) - (b.article_count || 0));
+    } else {
+      filtered.sort((a, b) => {
+        const countA = a.article_count || 0;
+        const countB = b.article_count || 0;
+  
+        if (topicSort === "count_asc") return countA - countB;
+        if (topicSort === "count_desc") return countB - countA;
+        if (topicSort === "name_asc") return a.name.localeCompare(b.name);
+        if (topicSort === "name_desc") return b.name.localeCompare(a.name);
+  
+        return 0;
+      });
+    }
 
     if (topicLimit != "all") {
       filtered = filtered.slice(0, topicLimit as number);
@@ -205,18 +213,16 @@ export default function GeneratePage() {
         credentials: "include"
       });
 
-      await new Promise(resolve => setTimeout(resolve, 2500)); 
       const result = await response.json();
+      if (result.status_code != 200) throw new Error(result.message || result.detail);
 
-      console.log("result", result);
+      // console.log("result", result);
 
       setGenerateResult(result);
       setEditedTitle(result.data?.title || "");
-      
-      sysLog("success", "Artikel berhasil di-generate.", result.exec_time);
-
+      sysLog("success", result.message, result.exec_time);
     } catch (error) {
-      sysLog("error", `Gagal memproses AI: ${error}`, exec_time);
+      sysLog("error", `Gagal generate artikel: ${error}`, exec_time);
       setGenerateResult({ error: true, message: String(error) });
     } finally {
       setIsLoading(false);
@@ -250,12 +256,14 @@ export default function GeneratePage() {
         });
         const result = await response.json();
 
+        if (result.status_code != 200) throw new Error(result.message || result.detail)
+
         if (result && result.status === "success" && result.data?.topics) {
           setTopicPool(result.data.topics);
           sysLog("success", "Sukses menarik data topics dan keywords dari backend", result.exec_time)
         }
       } catch (error) {
-        sysLog("error", "Gagal menarik data topics dan keywords dari backend.", exec_time);
+        sysLog("error", `Gagal menarik data topics dan keywords: ${error}`, exec_time);
       } finally {
         setIsFetchingTags(false);
       }
@@ -263,11 +271,34 @@ export default function GeneratePage() {
     fetchInitialData();
   }, []);
 
+  // Kontrol confirm dengan keyboard
+  useEffect(() => {
+    if (!isConfirmOpen) return;
+
+    const handleKey = (e: KeyboardEvent) => {
+      // saat enter ditekan -> eksekusi
+      if (e.key === "Enter"){
+          e.preventDefault();
+          handleGenerateExecute();
+          setIsConfirmOpen(false);
+        } 
+      // saat esc ditekan -> batal
+        else if (e.key === "Escape"){
+        setIsConfirmOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKey);
+
+    // Bersihkan listener saat tidak digunakan
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isConfirmOpen])
+
   return (
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative pb-10">
 
       {/* HEADER STICKY */}
-      <div className="sticky top-0 z-10 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
+      <div className="bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-blue-500/10 rounded-xl text-purple-400 border border-blue-500/20">
             <Sparkles size={28} />
@@ -345,6 +376,7 @@ export default function GeneratePage() {
                         onChange={(e) => setTopicSort(e.target.value as any)}
                         className="bg-[#0A0E1A] text-[10px] text-slate-400 border border-slate-700 rounded px-1.5 py-0.5 outline-none cursor-pointer hover:border-slate-500 transition-colors"
                       >
+                        <option value="rec">Recommended</option>
                         <option value="count_desc">Highest Count</option>
                         <option value="count_asc">Lowest Count</option>
                         <option value="name_asc">A - Z</option>

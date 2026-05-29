@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Network, BrainCircuit, Play, Settings, Layers, 
   Cpu, Zap, BarChart3, Microscope, CheckCircle2, Clock, AlertCircle,
@@ -66,13 +66,11 @@ export default function ClusterPage() {
         credentials: "include"
       });
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
+      if (result.status_code != 200) throw new Error(result.message || result.detail);
       
-      const responseJson = await response.json();
-      setClusterResult(responseJson);
-
-      exec_time = responseJson.exec_time || "0";
-      sysLog("success", "Clustering selesai dieksekusi.", exec_time);
+      setClusterResult(result);
+      sysLog("success", "Clustering selesai dieksekusi.", result.exec_time);
     } catch (error) {
       sysLog("error", `Gagal melakukan clustering: ${error}`, exec_time);
       setClusterResult({ error: true, message: String(error) });
@@ -80,6 +78,29 @@ export default function ClusterPage() {
       setIsLoading(false);
     }
   };
+
+  // Kontrol confirm dengan keyboard
+  useEffect(() => {
+    if (!isConfirmOpen) return;
+
+    const handleKey = (e: KeyboardEvent) => {
+      // saat enter ditekan -> eksekusi
+      if (e.key === "Enter"){
+          e.preventDefault();
+          handleClusterExecute();
+          setIsConfirmOpen(false);
+        } 
+      // saat esc ditekan -> batal
+        else if (e.key === "Escape"){
+        setIsConfirmOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKey);
+
+    // Bersihkan listener saat tidak digunakan
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isConfirmOpen])
 
   return (
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative pb-10">

@@ -16,10 +16,10 @@ export default function LeftSidebar() {
 
   const menuItems = [
     { name: "Dashboard", icon: Home, path: "/dashboard" },
-    { name: "Scrap", icon: Pickaxe, path: "/dashboard/scrap" },
-    { name: "Cluster", icon: Network, path: "/dashboard/cluster" },
-    { name: "Generate", icon: Sparkles, path: "/dashboard/generate" },
-    { name: "Storage", icon: Archive, path: "/dashboard/storage" }
+    { name: "Storage", icon: Archive, path: "/storage" },
+    { name: "Scrap", icon: Pickaxe, path: "/article/scrap" },
+    { name: "Cluster", icon: Network, path: "/article/cluster" },
+    { name: "Generate", icon: Sparkles, path: "/article/generate" },
   ];
 
   // Data konten info
@@ -153,7 +153,12 @@ export default function LeftSidebar() {
                 : "text-slate-300 hover:bg-[#840032]/40 hover:text-white" // Sedikit marun saat di-hover
               }`}
             >
-              <item.icon size={20} className={!isLeftSidebarOpen ? "mx-auto" : ""} />
+              <item.icon 
+                size={20} 
+                className={!isLeftSidebarOpen ? "mx-auto" : ""}
+                stroke="currentColor" 
+                fill={isActive ? "currentColor" : "none"}
+              />
               {isLeftSidebarOpen && <span>{item.name}</span>}
             </Link>
           );

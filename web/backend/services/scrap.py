@@ -363,7 +363,7 @@ async def scrap_content_articles(headers):
     finally:
         db.close()
 
-async def scrap_articles(token, mode, max_scrap, overlap_limit, page, limit_article_per_page):
+async def scrap_articles(payload, token):
     start_time = time.perf_counter()
 
     # Scrap
@@ -374,6 +374,13 @@ async def scrap_articles(token, mode, max_scrap, overlap_limit, page, limit_arti
         "newer_article": 0,
         "older_article": 0
     }
+
+    # Pembongkaran payload
+    mode = payload.mode
+    max_scrap = payload.max_scrap
+    overlap_limit = payload.overlap_limit
+    page = payload.page
+    limit_article_per_page = payload.limit_article_per_page
     
     # Eksekusi Track 1: Ambil List Slug berdasarkan mode
     if mode == "newer":
