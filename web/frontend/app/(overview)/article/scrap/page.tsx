@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { sysLog } from "@/utils/logger";
 import ConfirmationModal from "@/components/ConfirmationModal";
+import { ScrapResult } from "@/types/types";
 
 export default function ScrapPage() {
   // 1. State untuk 5 Input Parameter
@@ -20,8 +21,7 @@ export default function ScrapPage() {
 
   // 2. State untuk UI & Monitoring
   const [isLoading, setIsLoading] = useState(false);
-  const [scrapResult, setScrapResult] = useState<any | null>(null);
-
+  const [scrapResult, setScrapResult] = useState<ScrapResult | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   // 3. Handler Perubahan Input

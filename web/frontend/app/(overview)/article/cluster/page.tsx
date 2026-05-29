@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { 
   Network, BrainCircuit, Play, Settings, Layers, 
-  Cpu, Zap, BarChart3, Microscope, CheckCircle2, Clock, AlertCircle,
+  Zap, BarChart3, CheckCircle2, Clock, AlertCircle,
   Hash, Star
 } from "lucide-react";
 import { sysLog } from "@/utils/logger";
 import ConfirmationModal from "@/components/ConfirmationModal";
+import { ClusterResult } from "@/types/types";
 
 export default function ClusterPage() {
   // 1. State Lengkap sesuai Referensi (5 Group Input)
@@ -37,7 +38,7 @@ export default function ClusterPage() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [clusterResult, setClusterResult] = useState<any | null>(null);
+  const [clusterResult, setClusterResult] = useState<ClusterResult | null>(null);
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
 

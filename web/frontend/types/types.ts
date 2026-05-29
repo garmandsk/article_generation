@@ -71,3 +71,61 @@ export interface ArticleData {
   type: string;
   date: string;
 }
+
+export interface ScrapResult {
+  status_code?: number,
+  status?: string,
+  message: string,
+  error?: boolean,
+  data?: {
+    details_scrap: {
+      newer_article: number,
+      older_article: number,
+    }
+    system_health: {
+        total_list: number,
+        total_content: number,
+        total_chromadb: number
+    },
+    mode: string,
+  },
+  exec_time?: string
+}
+
+interface ClusterList {
+  cluster_id: number,
+  cluster_name: string,
+  cluster_keywords: string[],
+  article_count: number,
+  is_recommended: boolean
+}
+
+export interface ClusterResult {
+  status_code?: number,
+  status?: string,
+  message?: string,
+  error: boolean,
+  data?: {
+    metadatas: {
+        total_cluster: number,
+        total_recommended: number,
+        clustered_total_article: number,
+        outlier_total_article: number,
+        min_cf_range: number
+    },
+    cluster: ClusterList[]
+  },
+  exec_time?: string
+}
+
+export interface GenerateResult {
+  status_code?: number,
+  status?: string,
+  message: string,
+  error: boolean,
+  data?: {
+    title: string,
+    content: string
+  },
+  exec_time?: string,
+}

@@ -6,7 +6,7 @@ import {
   Sparkles, Play, CheckCircle2, Clock, AlertCircle, 
   Plus, X, ChevronDown, Lock, EyeOff, Eye, Check, Copy
 } from "lucide-react";
-import { TopicData } from "@/types/types";
+import { GenerateResult, TopicData } from "@/types/types";
 import { sysLog } from "@/utils/logger";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import { EditableTitleBox } from "@/components/editableTitleBox";
@@ -31,7 +31,7 @@ export default function GeneratePage() {
   // State Kontrol Layar
   const [isFetchingTags, setIsFetchingTags] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [generateResult, setGenerateResult] = useState<any | null>(null);
+  const [generateResult, setGenerateResult] = useState<GenerateResult | null>(null);
 
   // Input Teks Manual
   const [topicInputValue, setTopicInputValue] = useState("");
@@ -687,14 +687,14 @@ export default function GeneratePage() {
               {/* JUDUL ARTIKEL */}
               <div className="bg-[#002642]/60 p-5 rounded-2xl border border-blue-500/20 shadow-inner flex-1 flex flex-col transition-all">
                 <EditableTitleBox 
-                  initialTitle={generateResult.data.title}
+                  initialTitle={generateResult.data?.title || "Initial Title"}
                   titleText="Title Article"
                 />
               </div>
 
               {/* KONTEN ARTIKEL */}
               <EditableContentBox
-                initialContent={generateResult.data.content}
+                initialContent={generateResult.data?.content || "Initial Content"}
                 titleText="Content Article"
               />
 
