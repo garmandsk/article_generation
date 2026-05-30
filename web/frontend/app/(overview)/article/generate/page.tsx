@@ -294,7 +294,7 @@ export default function GeneratePage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 pb-6 gap-6 relative">
         
         {/* ================= AREA KIRI: MULTI-GROUP CONFIG (SCROLLABLE) ================= */}
-        <div className="sticky top-0 lg:col-span-5 space-y-6 min-h-[600px] max-h-[calc(100vh-140px)] overflow-y-auto pr-2 custom-scrollbar self-start">
+        <div className="sticky top-0 lg:col-span-5 space-y-6 min-h-150 max-h-[calc(100vh-140px)] overflow-y-auto pr-2 custom-scrollbar self-start">
           
           <div className="bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl">
             <div className="flex items-center gap-2 mb-6 border-b border-slate-700/50 pb-4">
@@ -311,7 +311,7 @@ export default function GeneratePage() {
                 </label>
                 
                 {/* 1. Selected Box */}
-                <div className="flex flex-wrap gap-2 p-3 bg-[#02040F] border border-slate-700/50 rounded-lg min-h-[56px] transition-all focus-within:border-blue-500/50">
+                <div className="flex flex-wrap gap-2 p-3 bg-[#02040F] border border-slate-700/50 rounded-lg min-h-14 transition-all focus-within:border-blue-500/50">
                   {formData.topics.length === 0 && !topicInputValue && (
                     <span className="text-sm text-slate-600 my-auto italic">Pilih dari daftar di bawah...</span>
                   )}
@@ -339,7 +339,7 @@ export default function GeneratePage() {
                     onChange={(e) => setTopicInputValue(e.target.value)}
                     onKeyDown={(e) => handleManualAdd(e, topicInputValue, setTopicInputValue, toggleTopic, formData.topics)}
                     placeholder={formData.topics.length === 0 ? "" : "Ketik manual..."}
-                    className="flex-1 bg-transparent text-sm text-slate-200 outline-none min-w-[120px]"
+                    className="flex-1 bg-transparent text-sm text-slate-200 outline-none min-w-30"
                   />
                 </div>
 
@@ -419,7 +419,7 @@ export default function GeneratePage() {
                 </label>
                 
                 {/* Selected Box */}
-                <div className="flex flex-wrap gap-2 p-3 bg-[#02040F] border border-slate-700/50 rounded-lg min-h-[56px] transition-all focus-within:border-[#E59500]/50">
+                <div className="flex flex-wrap gap-2 p-3 bg-[#02040F] border border-slate-700/50 rounded-lg min-h-14 transition-all focus-within:border-[#E59500]/50">
                   {formData.keywords.length === 0 && !keywordInputValue && (
                     <span className="text-sm text-slate-600 my-auto italic">Pilih dari daftar di bawah...</span>
                   )}
@@ -439,7 +439,7 @@ export default function GeneratePage() {
                     onChange={(e) => setKeywordInputValue(e.target.value)}
                     onKeyDown={(e) => handleManualAdd(e, keywordInputValue, setKeywordInputValue, toggleKeyword, formData.keywords)}
                     placeholder={formData.keywords.length === 0 ? "" : "Ketik manual..."}
-                    className="flex-1 bg-transparent text-sm text-slate-200 outline-none min-w-[120px]"
+                    className="flex-1 bg-transparent text-sm text-slate-200 outline-none min-w-30"
                   />
                 </div>
 
@@ -593,7 +593,7 @@ export default function GeneratePage() {
         </div>
 
         {/* ================= AREA KANAN: RESULT ================= */}
-        <div className="lg:col-span-7 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl flex flex-col min-h-[600px]">
+        <div className="lg:col-span-7 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl flex flex-col min-h-150">
           <div className="flex items-center justify-between mb-6 border-b border-slate-700/50 pb-4">
             <div className="flex items-center gap-2">
               <Zap size={20} className="text-purple-400" />

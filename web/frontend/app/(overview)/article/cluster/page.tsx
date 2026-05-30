@@ -269,7 +269,7 @@ export default function ClusterPage() {
         </div>
 
         {/* ================= AREA KANAN: RESULT ================= */}
-        <div className="lg:col-span-7 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl flex flex-col min-h-[600px]">
+        <div className="lg:col-span-7 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl flex flex-col min-h-150">
           <div className="flex items-center justify-between mb-6 border-b border-slate-700/50 pb-4">
             <div className="flex items-center gap-2">
               <BarChart3 size={20} className="text-[#E59500]" />
@@ -421,7 +421,7 @@ export default function ClusterPage() {
                       </div>
 
                       {/* Sisi Kanan: Article Count */}
-                      <div className="flex flex-col items-end justify-center min-w-[80px] border-l border-slate-800 pl-4 h-full">
+                      <div className="flex flex-col items-end justify-center min-w-20 border-l border-slate-800 pl-4 h-full">
                         <span className="text-2xl font-bold text-blue-400">{item.article_count}</span>
                         <span className="text-[10px] uppercase text-slate-500 font-semibold tracking-wider">Articles</span>
                       </div>
@@ -452,7 +452,7 @@ export default function ClusterPage() {
           {/* Baris 1: Embedding Model */}
           <div className="flex items-center justify-between border-b border-slate-800/50 pb-3">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Embedding Model</span>
-            <span className="text-xs font-bold text-[#E59500] bg-[#E59500]/10 px-2 py-1 rounded-md border border-[#E59500]/20 shadow-inner truncate max-w-[150px]">
+            <span className="text-xs font-bold text-[#E59500] bg-[#E59500]/10 px-2 py-1 rounded-md border border-[#E59500]/20 shadow-inner truncate max-w-37.5">
               {formData.embedding_model}
             </span>
           </div>

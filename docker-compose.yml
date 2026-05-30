@@ -1,0 +1,62 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=${PG_DB_USER}
+      - POSTGRES_PASSWORD=${PG_DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./web/backend
+    ports:
+      - "8000:8000"
+    environment:
+      # URL ini otomatis mengarah ke container 'db' di atas
+      - DATABASE_URL=postgresql://postgres:123456@db:5432/agc_db_prod
+      - DB_NAME=${DB_NAME}
+      - DB_PATH=${DB_PATH}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - MDL_USERNAME=${MDL_USERNAME}
+      - MDL_PASSWORD=${MDL_PASSWORD}
+      - ORG_CODE=${ORG_CODE}
+      - HF_TOKEN=${HF_TOKEN}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - MODEL_GEN_GEMINI_API_KEY=${MODEL_GEN_GEMINI_API_KEY}
+      - MODEL_EMBEDDING_NAME=${MODEL_EMBEDDING_NAME}
+      - FOLDER_GENERATION_DATA_PATH=${FOLDER_GENERATION_DATA_PATH}
+      - FILE_LIST_PATH=${FILE_LIST_PATH}
+      - FILE_CONTENT_PATH=${FILE_CONTENT_PATH}
+      - FILE_READY_DATA_PATH=${FILE_READY_DATA_PATH}
+      - FILE_TOPIC_DATA_PATH=${FILE_TOPIC_DATA_PATH}
+      - FILE_CLUSTERING_DATA_PATH=${FILE_CLUSTERING_DATA_PATH}
+      - FILE_METADATA_GENERATED_ARTICLE_PATH=${FILE_METADATA_GENERATED_ARTICLE_PATH}
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - BACKEND_INTERNAL_URL=http://backend:8000
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - AGC_TOKEN_NAME=${AGC_TOKEN_NAME}
+      - MYDIGILEARN_TOKEN_NAME=${MYDIGILEARN_TOKEN_NAME}
+      - URL_MAIN=${URL_MAIN}
+      - URL_LOGIN=${URL_LOGIN}
+      - URL_ARTICLE_LIST=${URL_ARTICLE_LIST}
+      - URL_ARTICLE_CONTENT=${URL_ARTICLE_CONTENT}
+    depends_on:
+      - db
+
+  frontend:
+    build: ./web/frontend 
+    ports:
+      - "8080:8080"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000 # Untuk browser
+      - BACKEND_INTERNAL_URL=http://backend:8000 # Untuk API route internal
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY} 
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

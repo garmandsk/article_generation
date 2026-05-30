@@ -39,7 +39,7 @@ export const EditableTitleBox = ({
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+      <div className="flex items-center justify-between mb-4 border-b border-slate-700/50 pb-3">
         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">{titleText} {isEditing && <span className="bg-[#E59500] text-[#02040F] px-1.5 py-0.5 rounded text-[8px] animate-pulse">EDIT MODE</span>}</p>
         
         {/* TOMBOL COPY: JUDUL */}

@@ -94,7 +94,7 @@ export const EditableContentBox = ({
   }
 
   return (
-    <div className="bg-[#02040F] p-6 rounded-2xl border border-slate-700/50 shadow-inner space-y-2 flex flex-col transition-all relative h-[500px] lg:h-[600px]">
+    <div className="bg-[#02040F] p-6 rounded-2xl border border-slate-700/50 shadow-inner space-y-2 flex flex-col transition-all relative h-125 lg:h-150">
       <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
           {titleText} {isEditing && <span className="bg-[#E59500] text-[#02040F] px-1.5 py-0.5 rounded text-[8px] animate-pulse">EDIT MODE</span>}

@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -20,7 +21,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base class untuk cetak biru (model) tabel database
 Base = declarative_base()
 
-# Dependency untuk FastAPI agar sesi database otomatis tertutup setelah selesai digunakan
+
+# Dependency untuk FastAPI agar sesi database otomatis tertutup setelah selesai
+# digunakan
 def get_db():
     db = SessionLocal()
     try:

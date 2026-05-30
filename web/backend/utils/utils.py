@@ -1,12 +1,15 @@
 import json
-import re
 import os
+import re
+
 import chromadb
 import pandas as pd
-from chromadb.utils import embedding_functions
-from config import settings
 from bs4 import BeautifulSoup
+from chromadb.utils import embedding_functions
 from fastapi import HTTPException
+
+from config import settings
+
 
 def get_from_json(file_path):
     file = []
@@ -15,51 +18,54 @@ def get_from_json(file_path):
             try:
                 print("file local list terisi")
                 file = json.load(f)
-                
+
             except json.JSONDecodeError:
                 print("File lokal list kosong atau rusak, mulai dari nol.")
                 file = []
 
             except FileNotFoundError:
-                # Menangani Skenario 1: File belum ada
-                # raise HTTPException(
-                #     status_code=404, 
-                #     detail="Data topik belum tersedia. Silakan jalankan proses clustering terlebih dahulu."
-                # )
-                
-                # OPSI LAIN: Jika kamu tidak mau frontend error, kamu bisa me-return array kosong
+                # Menangani Skenario 1: File belum ada raise HTTPException(
+                # status_code=404, detail="Data topik belum tersedia. Silakan
+                #     jalankan proses clustering terlebih dahulu." )
+
+                # OPSI LAIN: Jika kamu tidak mau frontend error, kamu bisa
+                # me-return array kosong
                 return {
-                    "status_code": 200, 
-                    "status": "success", 
-                    "message": "File belum tersedia"
+                    "status_code": 200,
+                    "status": "success",
+                    "message": "File belum tersedia",
                 }
 
             except Exception as e:
-                # Menangani error tak terduga lainnya (misal: file sedang dikunci oleh sistem operasi)
+                # Menangani error tak terduga lainnya
+                #  (misal: file sedang dikunci oleh
+                #  sistem operasi)
                 raise HTTPException(
-                    status_code=500, 
-                    detail=f"Terjadi kesalahan internal pada server: {str(e)}"
+                    status_code=500,
+                    detail=f"Terjadi kesalahan internal pada server: {str(e)}",
                 )
-    
+
     return file
+
 
 def save_to_json(file_path, data):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
         print(f"data telah tersimpan di {file_path}")
-        
+
+
 def merge_and_save_articles_list_to_json(local_article, new_article):
     # Merge Data
     dirty_data_merge = local_article + new_article
 
     # Deduplicate (Ubah jadi dictionary agar otomatis unik)
-    data_unique_dict = {item['id_inc']: item for item in dirty_data_merge}
+    data_unique_dict = {item["id_inc"]: item for item in dirty_data_merge}
 
     # Kembalikan lagi wujudnya menjadi List
     data_final = list(data_unique_dict.values())
 
     # Sorting (Terbaru di Atas, Terlama di Bawah)
-    data_final.sort(key=lambda artikel: artikel['id_inc'], reverse=True)
+    data_final.sort(key=lambda artikel: artikel["id_inc"], reverse=True)
 
     # Simpan kembali ke lokal
     save_to_json(settings.FILE_LIST_PATH, data_final)
@@ -67,43 +73,51 @@ def merge_and_save_articles_list_to_json(local_article, new_article):
     print(f"data lokal: {len(local_article)}")
     print(f"data baru: {len(new_article)}")
 
-    print(f"🎉 Sukses! Tersimpan {len(data_final)} artikel yang sudah rapi dan terurut.")
+    print(
+        f"🎉 Sukses! Tersimpan {len(data_final)} artikel yang sudah rapi dan terurut."
+    )
+
 
 def get_from_chromadb(db_path, db_name):
     client = chromadb.PersistentClient(path=db_path)
-    collection = client.get_collection(name=db_name)
+    collection = client.get_or_create_collection(name=db_name)
 
     return collection
+
 
 def save_to_chromadb(token, data_to_sync):
     if not data_to_sync:
         print("✨ Tidak ada artikel baru. ChromaDB dan PostgreSQL sudah sinkron!")
         return
-    
+
     print(f"🚀 Memulai Preprocessing {len(data_to_sync)} artikel untuk ChromaDB...")
-    
+
     df = pd.DataFrame(data_to_sync)
     print("🚀 Memulai Preprocessing data content untuk disimpan di ChromaDB...")
-    
+
     # Clear html
-    df['clean_content'] = df['content'].apply(clear_html)
-    
+    df["clean_content"] = df["content"].apply(clear_html)
+
     # Menggabungkan tags
-    if 'tags' in df.columns:
-        df['tags_string'] = df['tags'].apply(lambda x: " ".join(x) if isinstance(x, list) else "")
+    if "tags" in df.columns:
+        df["tags_string"] = df["tags"].apply(
+            lambda x: " ".join(x) if isinstance(x, list) else ""
+        )
     else:
-        df['tags_string'] = ""
+        df["tags_string"] = ""
 
     # Menggabungkan data title, content, dan tags
-    df['complete_data'] = df['title'] + " " + df['tags_string'] + " " + df['clean_content']
+    df["complete_data"] = (
+        df["title"] + " " + df["tags_string"] + " " + df["clean_content"]
+    )
 
     # Menormalisasikan data
-    df['ready_data'] = df['complete_data'].apply(text_normalization)
-    
+    df["ready_data"] = df["complete_data"].apply(text_normalization)
+
     # df_clean = df[['id_inc', 'id', 'slug', 'title', 'ready_data']]
-    
+
     # Menghapus baris dengan data kosong
-    df_clean = df.dropna(subset=['ready_data'])
+    df_clean = df.dropna(subset=["ready_data"])
 
     # Intip hasilnya
     # df_clean.info()
@@ -122,8 +136,7 @@ def save_to_chromadb(token, data_to_sync):
         model_name=settings.MODEL_EMBEDDING_NAME
     )
     collection = client.get_or_create_collection(
-        name=settings.DB_NAME,
-        embedding_function=embedder
+        name=settings.DB_NAME, embedding_function=embedder
     )
 
     daftar_id = df_clean["id"].tolist()
@@ -131,36 +144,39 @@ def save_to_chromadb(token, data_to_sync):
     daftar_metadata = [{"source": "agc_pipeline"} for _ in daftar_id]
 
     collection.upsert(
-        ids=daftar_id,
-        documents=daftar_dokumen,
-        metadatas=daftar_metadata
+        ids=daftar_id, documents=daftar_dokumen, metadatas=daftar_metadata
     )
 
     print(f"🎉 Selesai! {len(daftar_id)} vektor baru berhasil ditanam ke ChromaDB.")
     print(f"📦 Total data di ChromaDB saat ini: {collection.count()} artikel.")
     print(f"db path: {settings.DB_PATH}")
 
+
 def save_generated_article(title_article, data_article):
     """
     Fungsi untuk membersihkan nama file dan menyimpannya sebagai .md
     """
-    # 1. Bersihkan nama title_article untuk dijadikan nama file (hilangkan spasi jadi underscore)
+    # 1. Bersihkan nama title_article untuk
+    #  dijadikan nama file (hilangkan spasi
+    #  jadi underscore)
     # Contoh: "Kondisi Ekonomi" -> "kondisi_ekonomi"
-    file_name_safe = re.sub(r'[^a-zA-Z0-9]', '_', title_article.lower())
+    file_name_safe = re.sub(r"[^a-zA-Z0-9]", "_", title_article.lower())
     file_name = f"{file_name_safe}.json"
-    
+
     # 2. Tentukan lokasi folder penyimpanan (Mundur 1 folder ke 'data')
     folder_path = settings.FOLDER_GENERATION_DATA_PATH
-    
+
     # 3. Buat foldernya jika belum ada
     os.makedirs(folder_path, exist_ok=True)
-    
+
     # 4. Gabungkan folder dan nama file
     final_path = os.path.join(folder_path, file_name)
-    
-    # 5. Simpan file-nya (menggunakan encoding utf-8 agar emoji dan karakter khusus aman)
+
+    # 5. Simpan file-nya (menggunakan encoding
+    # utf-8 agar emoji dan karakter khusus aman)
     save_to_json(final_path, data_article)
     print(f"💾 Artikel berhasil disimpan di: {final_path}")
+
 
 def clear_html(html_tag):
     # Mengupas semua tag HTML dan menyisakan teks murni
@@ -170,7 +186,7 @@ def clear_html(html_tag):
 
 
 def text_normalization(teks):
-    teks = teks.lower() # Huruf kecil semua
-    teks = re.sub(r'[^a-z0-9\s]', ' ', teks) # Buang karakter aneh/tanda baca
-    teks = re.sub(r'\s+', ' ', teks).strip() # Rapikan spasi ganda
+    teks = teks.lower()  # Huruf kecil semua
+    teks = re.sub(r"[^a-z0-9\s]", " ", teks)  # Buang karakter aneh/tanda baca
+    teks = re.sub(r"\s+", " ", teks).strip()  # Rapikan spasi ganda
     return teks

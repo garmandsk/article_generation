@@ -1,21 +1,25 @@
 import asyncio
 import time
+
 import httpx
 from sqlalchemy.orm import Session
 
 from config import settings
-from config.database import SessionLocal  
-from models.models import Article         
+from config.database import SessionLocal
+from models.models import Article
 from utils import save_to_chromadb
 
-async def scrap_newer_list_articles(headers, max_scrap, overlap_limit, page, limit_article_per_page):
-    print("\nMemulai pencarian artikel baru...")
+
+async def scrap_newer_list_articles(
+    headers, max_scrap, overlap_limit, page, limit_article_per_page
+):
+    print("\nMemulai pencarian artikel baru...", flush=True)
 
     db: Session = SessionLocal()
     try:
         existing_ids = set(row[0] for row in db.query(Article.id_inc).all())
         if not len(existing_ids) > 0:
-            print("📌 File ada, tapi isinya list kosong. mulai dari 0")
+            print("📌 File ada, tapi isinya list kosong. mulai dari 0", flush=True)
 
         newer_articles_batch = []
         # overlap_limit = 100
@@ -27,32 +31,39 @@ async def scrap_newer_list_articles(headers, max_scrap, overlap_limit, page, lim
 
         stop_scrap = False
 
-        print("Mulai menjelajahi data terbaru - lokal")
-        print(f"Mulai dari page: {page}, Limit data setiap page: {limit_article_per_page}")
+        print("Mulai menjelajahi data terbaru - lokal", flush=True)
+        print(
+            f"Mulai dari page: {page}, Limit data setiap page: "
+            f"{limit_article_per_page}",
+            flush=True
+        )
         async with httpx.AsyncClient() as client:
             while not stop_scrap:
-                print(f"\n📄 Membuka Halaman {page}...")
+                print(f"\n📄 Membuka Halaman {page}...", flush=True)
 
-                params_list = {
-                    "page": page,
-                    "limit": limit_article_per_page
-                }
+                params_list = {"page": page, "limit": limit_article_per_page}
 
                 try:
-                    # Versi sinkronus
-                    # response_list = requests.get(settings.URL_ARTICLE_LIST, params=params_list, headers=headers)
-
-                    # Versi asinkronus
-                    response_list = await client.get(settings.URL_ARTICLE_LIST, params=params_list, headers=headers)
+                    response_list = await client.get(
+                        settings.URL_ARTICLE_LIST, params=params_list, headers=headers
+                    )
                     # print(f"response_list\n {response_list.json()}")
 
                     if response_list.status_code != 200:
-                        print("❌ Gagal buka halaman {page}. Status: {response_list.status_code}")
+                        print(
+                            f"❌ Gagal buka halaman {page}. "
+                            f"Status: {response_list.status_code}",
+                            flush=True
+                        )
                         break
 
                     data_list = response_list.json().get("data", {}).get("contents", [])
                     if not data_list:
-                        print("🛑 Halaman kosong! Kita sudah mencapai zaman purba (artikel pertama di server).")
+                        print(
+                            "🛑 Halaman kosong! Kita sudah mencapai zaman purba "
+                            "(artikel pertama di server).",
+                            flush=True
+                        )
                         break
 
                     for article in data_list:
@@ -63,9 +74,15 @@ async def scrap_newer_list_articles(headers, max_scrap, overlap_limit, page, lim
                             overlap_counter += 1
 
                             if overlap_counter >= overlap_limit:
-                                print(f"🛑 Menyentuh dasar data lama ({overlap_limit} beruntun). Tarik rem darurat!")
-                                stop_scrap = True # Beri sinyal agar Loop Luar juga ikut berhenti
-                                break # Hentikan Loop Dalam
+                                print(
+                                    f"🛑 Menyentuh dasar data lama "
+                                    f"({overlap_limit} beruntun). "
+                                    "Tarik rem darurat!",
+                                    flush=True
+                                )
+                                # Beri sinyal agar Loop Luar juga ikut berhenti
+                                stop_scrap = True
+                                break  # Hentikan Loop Dalam
                             continue
 
                         # SKENARIO B: Artikel BARU atau GAP
@@ -75,17 +92,25 @@ async def scrap_newer_list_articles(headers, max_scrap, overlap_limit, page, lim
                             id=article["id"],
                             id_inc=id_inc_current,
                             slug=article["slug"],
-                            status="slug_only"
+                            status="slug_only",
                         )
                         newer_articles_batch.append(new_item)
 
-                        print(f"➕ Dapat artikel {i}/{max_scrap} (Baru/Gap): {article['slug']}")
+                        print(
+                            f"➕ Dapat artikel {i}/{max_scrap} "
+                            f"(Baru/Gap): {article['slug']}", 
+                            flush=True
+                        )
 
                         i += 1
 
                         # SKENARIO C: KUOTA HABIS
                         if i > max_scrap:
-                            print(f"🛑 Kuota habis ({max_scrap}). Sisa gap dilanjut besok!")
+                            print(
+                                f"🛑 Kuota habis ({max_scrap}). "
+                                "Sisa gap dilanjut besok!",
+                                flush=True
+                            )
                             stop_scrap = True
                             break
                 except Exception as e:
@@ -97,19 +122,24 @@ async def scrap_newer_list_articles(headers, max_scrap, overlap_limit, page, lim
 
             # Simpan massal (Bulk Save) objek-objek baru ke PostgreSQL
             if newer_articles_batch:
-                print(f"💾 Menyimpan {len(newer_articles_batch)} slug baru ke PostgreSQL...")
+                print(
+                    f"💾 Menyimpan {len(newer_articles_batch)} "
+                    "slug baru ke PostgreSQL...",
+                    flush=True
+                )
                 db.bulk_save_objects(newer_articles_batch)
                 db.commit()
-            
+
         return {
             "status_code": 200,
             "status": "success",
             "message": "berhasil menggali artikel baru",
-            "scrap_count": len(newer_articles_batch)
+            "scrap_count": len(newer_articles_batch),
         }
-    
+
     finally:
         db.close()
+
 
 async def scrap_older_list_articles(headers, max_scrap, limit_article_per_page):
     print("\nMemulai pencarian artikel jadul...")
@@ -120,10 +150,11 @@ async def scrap_older_list_articles(headers, max_scrap, limit_article_per_page):
 
         if not existing_ids:
             return {
-            "status_code": 400,
-            "status": "fail",
-            "message": "Database lokalmu masih kosong! Gunakan script 'Tarik Data Baru' dulu mulai dari halaman 1."
-        }
+                "status_code": 400,
+                "status": "fail",
+                "message": "Database lokalmu masih kosong! Gunakan script 'Tarik Data "
+                "Baru' dulu mulai dari halaman 1.",
+            }
 
         print("cek artikel jadul")
 
@@ -132,38 +163,42 @@ async def scrap_older_list_articles(headers, max_scrap, limit_article_per_page):
         i = 1
         estimation = len(existing_ids) // 10
         page = 1 if (estimation - 2) <= 0 else (estimation - 2)
-        max_page = page + 100 
+        max_page = page + 100
         # max_scrap = 10
-        visited_page = 1
+        # visited_page = 1
         stop_scrap = False
 
         # Mulai scraping
-        print(f"Mulai dari page: {page}, Limit data setiap page: {limit_article_per_page}")
+        print(
+            f"Mulai dari page: {page}, Limit data setiap page: {limit_article_per_page}"
+        )
         async with httpx.AsyncClient() as client:
             while not stop_scrap and page <= max_page:
-                params_list = {
-                    "page": page,
-                    "limit": limit_article_per_page
-                }
-                # Versi sinkronus
-                # response_list = requests.get(settings.URL_ARTICLE_LIST, params=params_list, headers=headers)
+                params_list = {"page": page, "limit": limit_article_per_page}
 
-                # Versi asinkronus
                 try:
-                    response_list = await client.get(settings.URL_ARTICLE_LIST, params=params_list, headers=headers)
+                    response_list = await client.get(
+                        settings.URL_ARTICLE_LIST, params=params_list, headers=headers
+                    )
                     # print(f"response_list\n {response_list.json()}")
 
                     if response_list.status_code != 200:
-                        print(f"❌ Gagal buka halaman {page}. Status: {response_list.status_code}")
+                        print(
+                            f"❌ Gagal buka halaman {page}. Status: "
+                            f"{response_list.status_code}"
+                        )
                         break
 
-                    data_list = response_list.json().get('data', {}).get("contents", [])
-                    
+                    data_list = response_list.json().get("data", {}).get("contents", [])
+
                     # JIKA MENTOK UJUNG DATABASE SERVER
                     if not data_list:
-                        print("🛑 Halaman kosong! Kita sudah mencapai zaman purba (artikel pertama di server).")
+                        print(
+                            "🛑 Halaman kosong! Kita sudah mencapai zaman purba "
+                            "(artikel pertama di server)."
+                        )
                         break
-                    
+
                     # jika artikel jadul
                     print(f"⛏️ Mulai menggali di Halaman {page}...")
 
@@ -176,17 +211,23 @@ async def scrap_older_list_articles(headers, max_scrap, limit_article_per_page):
                                 id=article["id"],
                                 id_inc=id_inc_current,
                                 slug=article["slug"],
-                                status="slug_only"
+                                status="slug_only",
                             )
 
                             older_articles_batch.append(new_item)
 
-                            print(f"➕ Dapat fosil article baru {i}/{max_scrap}: {article['slug']}")
+                            print(
+                                f"➕ Dapat fosil article baru {i}/{max_scrap}: "
+                                f"{article['slug']}"
+                            )
 
                             i += 1
 
                             if i > max_scrap:
-                                print(f"🛑 Kuota habis ({max_scrap}). Sisa fosil dilanjut besok!")
+                                print(
+                                    f"🛑 Kuota habis ({max_scrap}). "
+                                    "Sisa fosil dilanjut besok!"
+                                )
                                 stop_scrap = True
                                 break
                     # else:
@@ -198,10 +239,15 @@ async def scrap_older_list_articles(headers, max_scrap, limit_article_per_page):
                 page += 1
                 await asyncio.sleep(5)
 
-            print(f"\n🎉 Berhasil menggali {len(older_articles_batch)} article masa lalu!")
+            print(
+                f"\n🎉 Berhasil menggali {len(older_articles_batch)} article masa lalu!"
+            )
 
             if older_articles_batch:
-                print(f"💾 Menyimpan {len(older_articles_batch)} slug fosil ke PostgreSQL...")
+                print(
+                    f"💾 Menyimpan {len(older_articles_batch)} "
+                    "slug fosil ke PostgreSQL..."
+                )
                 db.bulk_save_objects(older_articles_batch)
                 db.commit()
 
@@ -209,12 +255,13 @@ async def scrap_older_list_articles(headers, max_scrap, limit_article_per_page):
             "status_code": 200,
             "status": "success",
             "message": "berhasil menggali artikel jadul",
-            "scrap_count": len(older_articles_batch)
+            "scrap_count": len(older_articles_batch),
         }
-    
+
     finally:
         db.close()
-    
+
+
 async def scrap_list_articles(token, mode, max_scrap):
     headers = settings.BASE_HEADERS.copy()
     headers["Authorization"] = f"Bearer {token}"
@@ -226,13 +273,11 @@ async def scrap_list_articles(token, mode, max_scrap):
                 "status_code": 400,
                 "status": "fail",
                 "message": f"scrap list artikel {mode} gagal",
-                "detail": response
+                "detail": response,
             }
-        
+
         scrap_count = response["scrap_count"]
-        details_scrap = {
-            "newer": scrap_count
-        }
+        details_scrap = {"newer": scrap_count}
 
     elif mode == "older":
         # Scrap older
@@ -242,14 +287,12 @@ async def scrap_list_articles(token, mode, max_scrap):
                 "status_code": 400,
                 "status": "fail",
                 "message": f"scrap list artikel {mode} gagal",
-                "detail": response
+                "detail": response,
             }
-        
+
         scrap_count = response["scrap_count"]
-        details_scrap = {
-            "older": scrap_count
-        }
-        
+        details_scrap = {"older": scrap_count}
+
     else:
         response_newer = await scrap_newer_list_articles(headers, max_scrap)
         response_older = await scrap_older_list_articles(headers, max_scrap)
@@ -258,71 +301,74 @@ async def scrap_list_articles(token, mode, max_scrap):
                 "status_code": 400,
                 "status": "fail",
                 "message": f"scrap list artikel {mode} gagal",
-                "detail": response
+                "detail": response,
             }
 
         scrap_count_newer = response_newer["scrap_count"]
         scrap_count_older = response_older["scrap_count"]
-        details_scrap = {
-            "newer": scrap_count_newer,
-            "older": scrap_count_older
-        }
+        details_scrap = {"newer": scrap_count_newer, "older": scrap_count_older}
 
     return {
-            "status_code": 200,
-            "status": "success",
-            "message": f"scrap list artikel list {mode} berhasil dan sudah tersimpan ke file {settings.FILE_LIST_PATH}",
-            "details_scrap": details_scrap
-        }
+        "status_code": 200,
+        "status": "success",
+        "message": f"scrap list artikel list {mode} " f"berhasil dan sudah "
+        "tersimpan ke file "
+        f"{settings.FILE_LIST_PATH}",
+        "details_scrap": details_scrap,
+    }
+
 
 async def scrap_content_articles(headers):
     print("\n⚡ [Postgres] Memulai penarikan konten penuh (Asinkronus)...")
 
     db: Session = SessionLocal()
     try:
-        # queue_articles = db.query(Article).filter(Article.status == "slug_only").limit(max_scrap).all()
+        # queue_articles = db.query(Article).filter(Article.status ==
+        # "slug_only").limit(max_scrap).all()
         queue_articles = db.query(Article).filter(Article.status == "slug_only").all()
 
         if not queue_articles:
             print("✅ Semua list artikel di database sudah memiliki konten penuh.")
             return {
-                "status_code": 200, 
+                "status_code": 200,
                 "status": "success",
                 "message": "semua content artikel sudah diambil",
-                "downloaded_count": 0
+                "downloaded_count": 0,
             }
 
-        print(f"📋 Ditemukan {len(queue_articles)} antrean artikel yang siap ditarik kontennya.")
+        print(
+            f"📋 Ditemukan {len(queue_articles)} antrean "
+            "artikel yang siap ditarik kontennya."
+        )
 
         # max_scrap = 10
         i = 1
         downloaded_count = 0
-        stop_scrap = False
 
         async with httpx.AsyncClient() as client:
             for article in queue_articles:
                 slug = article.slug
 
-                url_article_content_final = f"{settings.URL_ARTICLE_CONTENT.rstrip('/')}/{slug}"
+                url_article_content_final = (
+                    f"{settings.URL_ARTICLE_CONTENT.rstrip('/')}/{slug}"
+                )
                 # print(f"url konten: {url_article_content}")
                 # print(f"url final: {url_article_content_final}")
-                
-                # Versi sinkronus
-                # response_content = requests.get(url_article_content_final, headers=headers)
-
-                # Versi asinkronus
-                # print(f"url content: {url_article_content_final}")
-                # print(f"headers: \n{headers}")
 
                 try:
-                    response_content = await client.get(url_article_content_final, headers=headers)
+                    response_content = await client.get(
+                        url_article_content_final, headers=headers
+                    )
 
                     # if response_content.status_code == 401:
                     #     print("Cookie kadaluwarsa")
                     #     break
 
                     if response_content.status_code != 200:
-                        print(f"❌ Gagal mengambil {slug} (Status: {response_content.status_code})")
+                        print(
+                            "❌ Gagal mengambil {slug} "
+                            f"(Status: {response_content.status_code})"
+                        )
                         print(f"Details: \n{response_content.json()}")
                         await asyncio.sleep(5)
                         continue
@@ -332,14 +378,16 @@ async def scrap_content_articles(headers):
                     # Cek apakah datanya benar-benar ada
                     if not data:
                         print(f"⚠️ Melewati {slug}: Isinya kosong dari server.")
-                        continue 
-                    
+                        continue
+
                     # Jika data ada
                     article.title = data.get("title", "Untitled")
                     article.content = data.get("article", "")
                     article.status = "scraped"
 
-                    print(f"✅ [{i}/{len(queue_articles)}] Sukses menyedot konten: {slug}")
+                    print(
+                        f"✅ [{i}/{len(queue_articles)}] Sukses menyedot konten: {slug}"
+                    )
                     downloaded_count += 1
                     i += 1
 
@@ -347,21 +395,22 @@ async def scrap_content_articles(headers):
                     print(f"⚠️ Error tak terduga pada {slug}: {e}")
 
                 await asyncio.sleep(5)
-            
+
             # Commit seluruh perubahan data
             if downloaded_count > 0:
                 print("💾 Mengunci perubahan konten ke PostgreSQL...")
                 db.commit()
-        
+
         return {
             "status_code": 200,
             "status": "success",
-            "message": f"{downloaded_count} data artikel telah ditambah dan disimpan di chromadb",
+            "message": f"{downloaded_count} data artikel telah disimpan di chromadb",
             "scrap_count": len(queue_articles),
-            "downloaded_count": downloaded_count
+            "downloaded_count": downloaded_count,
         }
     finally:
         db.close()
+
 
 async def scrap_articles(payload, token):
     start_time = time.perf_counter()
@@ -370,10 +419,7 @@ async def scrap_articles(payload, token):
     headers = settings.BASE_HEADERS.copy()
     headers["Authorization"] = f"Bearer {token}"
 
-    details_scrap = {
-        "newer_article": 0,
-        "older_article": 0
-    }
+    details_scrap = {"newer_article": 0, "older_article": 0}
 
     # Pembongkaran payload
     mode = payload.mode
@@ -381,84 +427,100 @@ async def scrap_articles(payload, token):
     overlap_limit = payload.overlap_limit
     page = payload.page
     limit_article_per_page = payload.limit_article_per_page
-    
+
     # Eksekusi Track 1: Ambil List Slug berdasarkan mode
     if mode == "newer":
         print("masuk scrap artikel newer")
-        response_list = await scrap_newer_list_articles(headers, max_scrap, overlap_limit, page, limit_article_per_page)
+        response_list = await scrap_newer_list_articles(
+            headers, max_scrap, overlap_limit, page, limit_article_per_page
+        )
 
         if response_list["status_code"] != 200:
             return {
                 "status_code": response_list["status_code"],
                 "status": response_list["status"],
                 "message": f"gagal scrap list {mode}",
-                "details": response_list
+                "details": response_list,
             }
         scrap_count = response_list["scrap_count"]
         details_scrap["newer_article"] = scrap_count
 
     elif mode == "older":
-        response_list = await scrap_older_list_articles(headers, max_scrap, limit_article_per_page)
+        response_list = await scrap_older_list_articles(
+            headers, max_scrap, limit_article_per_page
+        )
 
         if response_list["status_code"] != 200:
             return {
                 "status_code": response_list["status_code"],
                 "status": response_list["status_code"],
                 "message": f"gagal scrap list {mode}",
-                "details": response_list
+                "details": response_list,
             }
-        
+
         scrap_count = response_list["scrap_count"]
         details_scrap["older_article"] = scrap_count
 
     else:
-        response_list_newer_article = await scrap_newer_list_articles(headers, max_scrap, overlap_limit, page, limit_article_per_page)
-        response_list_older_article = await scrap_older_list_articles(headers, max_scrap, limit_article_per_page)
+        response_list_newer_article = await scrap_newer_list_articles(
+            headers, max_scrap, overlap_limit, page, limit_article_per_page
+        )
+        response_list_older_article = await scrap_older_list_articles(
+            headers, max_scrap, limit_article_per_page
+        )
 
-        if response_list_newer_article["status_code"] != 200 or response_list_older_article["status_code"] != 200:
+        if (
+            response_list_newer_article["status_code"] != 200
+            or response_list_older_article["status_code"] != 200
+        ):
             return {
                 "status_code": response_list_newer_article["status_code"],
                 "status": "fail",
                 "message": f"gagal scrap artikel {mode}",
-                "details": [
-                    response_list_newer_article,
-                    response_list_older_article
-                ]
+                "details": [response_list_newer_article, response_list_older_article],
             }
-        
-        scrap_count = response_list_newer_article["scrap_count"] + response_list_older_article["scrap_count"]
+
+        scrap_count = (
+            response_list_newer_article["scrap_count"]
+            + response_list_older_article["scrap_count"]
+        )
         details_scrap["newer_article"] = response_list_newer_article["scrap_count"]
         details_scrap["older_article"] = response_list_older_article["scrap_count"]
 
-    res_content = await scrap_content_articles(headers)
-    
+    await scrap_content_articles(headers)
+
     # Masukkan data ke database
+    print("Memasukkan data ke db")
     db: Session = SessionLocal()
     try:
         # HANYA ambil data yang sudah punya konten ('scraped') tapi belum masuk ChromaDB
         unsynced_articles = db.query(Article).filter(Article.status == "scraped").all()
-        
+
         if unsynced_articles:
-            print(f"\n🔄 Menemukan {len(unsynced_articles)} artikel yang belum masuk ke ChromaDB. Menyinkronkan...")
-            
+            print(
+                f"\n🔄 Menemukan {len(unsynced_articles)} artikel yang belum "
+                "masuk ke ChromaDB. Menyinkronkan..."
+            )
+
             lean_data_for_chroma = [
                 {
                     "id": art.id,
                     "title": art.title or "",
                     "content": art.content or "",
-                    "tags": []
+                    "tags": [],
                 }
                 for art in unsynced_articles
             ]
-            
+
             # print(f"data ke chromadb: \n{lean_data_for_chroma}")
             # 1. Simpan ke ChromaDB
             await asyncio.to_thread(save_to_chromadb, token, lean_data_for_chroma)
-            
-            # 2. JIKA BERHASIL (tidak ada error dari fungsi di atas), update status di Postgres!
+
+            # 2. JIKA BERHASIL (tidak ada error dari fungsi di atas), update
+            #    status di Postgres!
             for art in unsynced_articles:
                 art.status = "vectorized"  # Status pamungkas!
-            
+
             # Kunci perubahan ke database
             db.commit()
             print("✅ Sinkronisasi Postgres -> ChromaDB selesai sempurna.")
@@ -467,8 +529,17 @@ async def scrap_articles(payload, token):
 
         # Hitung statistik akhir untuk dikembalikan ke Response API (Dashboard Next.js)
         total_list = db.query(Article).count()
-        total_content = db.query(Article).filter(Article.status.in_(["scraped", "vectorized"])).count()
-        total_chromadb = db.query(Article).filter(Article.status == "vectorized").count()
+        total_content = db.query(Article).filter(Article.status != "slug_only").count()
+
+        total_chromadb = (
+        db.query(Article)
+        .filter(
+            Article.status.in_(
+                ["vectorized", "clustered", "outlier_cluster", "generated"]
+            )
+        )
+        .count()
+    )
 
         end_time = time.perf_counter()
         exec_time_sec = str(round(end_time - start_time)) + "s"
@@ -482,20 +553,20 @@ async def scrap_articles(payload, token):
                 "system_health": {
                     "total_list": total_list,
                     "total_content": total_content,
-                    "total_chromadb": total_chromadb
+                    "total_chromadb": total_chromadb,
                 },
                 "mode": mode,
             },
-            "exec_time": exec_time_sec
+            "exec_time": exec_time_sec,
         }
-        
+
     except Exception as e:
         db.rollback()
         print(f"❌ Terjadi kesalahan saat sinkronisasi ChromaDB: {e}")
         return {
             "status_code": 500,
             "status": "error",
-            "message": f"Gagal menyinkronkan data: {str(e)}"
+            "message": f"Gagal menyinkronkan data: {str(e)}",
         }
     finally:
         db.close()

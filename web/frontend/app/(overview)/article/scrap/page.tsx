@@ -209,7 +209,7 @@ export default function ScrapPage() {
         </div>
 
         {/* ================= AREA KANAN: MONITORING & RESULT ================= */}
-        <div className="lg:col-span-8 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl flex flex-col min-h-[600px]">
+        <div className="lg:col-span-8 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl flex flex-col min-h-150">
           <div className="flex items-center justify-between mb-6 border-b border-slate-700/50 pb-4">
             <div className="flex items-center gap-2">
               <Activity size={20} className="text-blue-400" />

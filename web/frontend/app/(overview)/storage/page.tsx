@@ -74,8 +74,11 @@ export default function StoragePage() {
 
         // Otomatis select artikel pertama jika ada artikel
         if (result.data.length > 0) {
-          const isSelectedStillExist = result.data.some((a: ArticleData) => a.id === selectedArticleId)
-          if (!isSelectedStillExist) setSelectedArticleId(result.data[0].id);
+          setSelectedArticleId((prevId) => {
+            const isSelectedStillExist = result.data.some((a: ArticleData) => a.id === prevId);
+
+            return isSelectedStillExist ? prevId : result.data[0].id;
+          });
         } else {
           setSelectedArticleId(null);
         }
@@ -89,7 +92,7 @@ export default function StoragePage() {
 
     // Jalankan fetch setiap salah satu dari 4 variabel/komponen ini berubah
     fetchArticles();
-  }, [debouncedSearch, filterType, sortOrder, limit, selectedArticleId]);
+  }, [debouncedSearch, filterType, sortOrder, limit]);
   
   const selectedArticle = articles.find(a => a.id === selectedArticleId);
 
@@ -113,7 +116,7 @@ export default function StoragePage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative h-[calc(100vh-180px)]">
         
         {/* PANEL KIRI: CONFIGURE & LIST (col-span-5) */}
-        <div className="lg:col-span-5 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-5 shadow-xl flex flex-col h-full min-h-[600px]">
+        <div className="lg:col-span-5 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-5 shadow-xl flex flex-col h-full min-h-150">
           
           <div className="flex items-center gap-2 mb-5 border-b border-slate-700/50 pb-3 shrink-0">
             <Database size={18} className="text-slate-400" />
