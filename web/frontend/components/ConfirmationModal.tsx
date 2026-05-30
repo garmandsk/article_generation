@@ -58,7 +58,7 @@ export default function ConfirmationModal({
     if (isOpen) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRender(true);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setIsClosing(false);
     } else if (render && !isClosing) {
       // Jika parent memaksa tutup tanpa melalui tombol di dalam modal

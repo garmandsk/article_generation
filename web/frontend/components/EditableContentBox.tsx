@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { Check, ChevronDown, Copy, FileText, Globe, Code } from "lucide-react";
 import { sysLog } from "@/utils/logger";
-import TurndownService from "turndown";
+import { convertToMD } from "@/utils/helper";
 
 export const EditableContentBox = ({ 
   initialContent, 
@@ -15,7 +15,8 @@ export const EditableContentBox = ({
   titleText: string 
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [content, setContent] = useState(initialContent);
+  const [prevInitialContent, setPrevInitialContent] = useState(initialContent);
+  const [content, setContent] = useState(() => convertToMD(initialContent));
 
   // State salin
   const [isCopyMenuOpen, setIsCopyMenuOpen] = useState(false);
@@ -76,37 +77,6 @@ export const EditableContentBox = ({
     }
   }
 
-  // Isi Content box
-  useEffect(() => {
-    // Deteksi sederhana: apakah string mengandung tag HTML penutup atau pembuka?
-    const containsHTML = /<\/?[a-z][\s\S]*>/i.test(initialContent);
-
-    if (containsHTML) {
-      try {
-        // Inisialisasi Turndown dengan pengaturan yang ramah standar Markdown
-        const turndownService = new TurndownService({
-          headingStyle: 'atx', // Mengubah <h1> menjadi #
-          codeBlockStyle: 'fenced', // Mengubah <pre><code> menjadi ```
-          hr: '---', // Garis pembatas
-          bulletListMarker: '-' // Format list
-        });
-
-        const safeHtml = initialContent.replace(/src=["']\s*["']/gi, 'src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="');
-
-        // Konversi HTML ke Markdown
-        const markdownConverted = turndownService.turndown(safeHtml);
-        setContent(markdownConverted);
-        sysLog("info", "Format HTML terdeteksi dan berhasil dikonversi ke Markdown.", "0");
-      } catch (error) {
-        sysLog("error", `Gagal mengonversi HTML. Memuat teks mentah.: ${error}`, "0");
-        setContent(initialContent); // Fallback jika gagal
-      }
-    } else {
-      // Jika sudah Markdown / Teks biasa, langsung set saja
-      setContent(initialContent);
-    }
-  }, [initialContent]);
-
   // Efek untup menutup dropdown saat klik di luar area
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -116,7 +86,12 @@ export const EditableContentBox = ({
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [])
+  
+  if (initialContent !== prevInitialContent) {
+    setPrevInitialContent(initialContent);
+    setContent(convertToMD(initialContent));
+  }
 
   return (
     <div className="bg-[#02040F] p-6 rounded-2xl border border-slate-700/50 shadow-inner space-y-2 flex flex-col transition-all relative h-[500px] lg:h-[600px]">
@@ -187,7 +162,7 @@ export const EditableContentBox = ({
         ) : (
           <div 
             onClick={() => setIsEditing(true)}
-            className="prose-content cursor-pointer hover:bg-slate-800/30 p-2 rounded-lg transition-colors prose prose-sm prose-invert max-w-none text-slate-200 font-serif
+            className="prose-content cursor-pointer hover:bg-slate-800/30 p-0 rounded-lg transition-colors prose prose-sm prose-invert max-w-none text-slate-200 font-serif
             prose-headings:text-white prose-headings:font-bold
             prose-h1:text-xl prose-h2:text-lg prose-h3:text-base
             prose-p:leading-relaxed prose-p:mb-4

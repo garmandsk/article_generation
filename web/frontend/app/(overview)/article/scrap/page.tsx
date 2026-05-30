@@ -58,7 +58,7 @@ export default function ScrapPage() {
       });
       
       const result = await response.json();
-      if (result.status_code) throw new Error(result.message || result.detail);
+      if (result.status_code != 200) throw new Error(result.message || result.detail);
 
       setScrapResult(result);
       sysLog("success", result.message, result.exec_time);

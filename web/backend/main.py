@@ -21,7 +21,7 @@ from utils import get_from_json, get_from_chromadb, save_to_chromadb
 from config import settings
 from datetime import datetime, timedelta
 from jose import jwt
-from sqlalchemy import func, desc, asc, or_
+from sqlalchemy import func, desc, asc, or_, not_
 from sqlalchemy.orm import Session
 # Pastikan jalur import ini sesuai dengan struktur foldermu
 from config.database import get_db 
@@ -349,8 +349,11 @@ def get_data_analytics(
     base_query = db.query(
         Article.cluster_topic,
         func.count(Article.id).label("total")
-    ).filter(Article.cluster_topic.isnot(None)) \
-     .group_by(Article.cluster_topic) \
+    ).filter(
+        Article.cluster_topic.isnot(None),
+        Article.status == "clustered",
+        not_(Article.cluster_topic.ilike("%outlier%"))
+    ).group_by(Article.cluster_topic) \
      
     if topic_sort == "asc":
         topic_group = base_query.order_by(asc("total")).limit(10).all()

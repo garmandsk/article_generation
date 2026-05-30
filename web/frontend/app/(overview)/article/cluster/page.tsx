@@ -107,7 +107,7 @@ export default function ClusterPage() {
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative pb-10">
       
       {/* HEADER STICKY */}
-      <div className="sticky top-0 z-10 bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
+      <div className="bg-[#002642]/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-blue-500/10 rounded-xl text-[#E59500] border border-blue-500/20">
             <Network size={28} />
@@ -123,7 +123,7 @@ export default function ClusterPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 pb-6 gap-6 relative">
         
         {/* ================= AREA KIRI: MULTI-GROUP CONFIG (SCROLLABLE) ================= */}
-        <div className="lg:col-span-5 space-y-6 max-h-[700px] overflow-y-auto pr-0 sticky top-32">
+        <div className="lg:col-span-5 space-y-6 max-h-[calc(100vh-140px)] overflow-y-auto pr-2 sticky top-0 custom-scrollbar self-start">
           
           {/* GROUP 1: General & Recommendation */}
           <div className="bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Pickaxe, Database, FileText, Server, Network, 
   Sparkles, LayoutGrid, FileBox, RefreshCw, PieChartIcon, 
@@ -76,25 +76,37 @@ export default function DashboardHome() {
     }
   }
 
+  const fetchCoreData = useCallback(async () => {
+    try {
+      await Promise.all([
+        fetchDashboardStats(),
+        fetchDashboardAnalytics()
+      ]);
+    } catch (error) {
+      sysLog("error", `Gagal menarik core data: ${error}`, "0");
+    }
+  }, []);
+
   const handleToggleSort = () => {
     const newSortMode = topicSort === "desc" ? "asc" : "desc";
     setTopicSort(newSortMode);
     fetchDashboardAnalytics(newSortMode);
   }
 
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    await fetchCoreData();
+    setIsLoading(false)
+  }
+  
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-
-      await Promise.all([
-        fetchDashboardStats(),
-        fetchDashboardAnalytics()
-      ]);
-
-      setIsLoading(false)
+    const loadInitial = async () => {
+      await fetchCoreData();
+      setIsLoading(false);
     }
-    fetchData();
-  }, []);
+
+    loadInitial();
+  }, [fetchCoreData]);
 
 
   return (
@@ -113,7 +125,7 @@ export default function DashboardHome() {
         </div>
 
           <button 
-            onClick={fetchData}
+            onClick={handleRefresh}
             disabled={isLoading}
             className="flex gap-2 ml-auto px-4 py-2 bg-white/5 hover:bg-white/10 border border-slate-700/50 rounded-lg text-slate-300 transition-all disabled:opacity-50 z-10"
           >

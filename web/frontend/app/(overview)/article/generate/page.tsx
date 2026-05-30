@@ -247,8 +247,9 @@ export default function GeneratePage() {
         setIsFetchingTags(false);
       }
     };
+  
     fetchInitialData();
-  });
+  }, []);
 
   // Kontrol confirm dengan keyboard
   useEffect(() => {
@@ -292,8 +293,8 @@ export default function GeneratePage() {
       {/* SPLIT LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 pb-6 gap-6 relative">
         
-        {/* ================= AREA KIRI: CONFIGURATION ================= */}
-        <div className="lg:col-span-5 space-y-6 max-h-[700px] overflow-y-auto pr-2 sticky top-32 custom-scrollbar">
+        {/* ================= AREA KIRI: MULTI-GROUP CONFIG (SCROLLABLE) ================= */}
+        <div className="sticky top-0 lg:col-span-5 space-y-6 min-h-[600px] max-h-[calc(100vh-140px)] overflow-y-auto pr-2 custom-scrollbar self-start">
           
           <div className="bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl">
             <div className="flex items-center gap-2 mb-6 border-b border-slate-700/50 pb-4">
