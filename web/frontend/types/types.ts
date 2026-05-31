@@ -68,7 +68,7 @@ export interface ArticleData {
   id: string;
   title: string;
   content: string;
-  type: string;
+  status: string;
   date: string;
 }
 
@@ -76,6 +76,7 @@ export interface ScrapResult {
   status_code?: number,
   status?: string,
   message: string,
+  detail?: string,
   error?: boolean,
   data?: {
     details_scrap: {
@@ -104,6 +105,7 @@ export interface ClusterResult {
   status_code?: number,
   status?: string,
   message?: string,
+  detail?: string,
   error: boolean,
   data?: {
     metadatas: {
@@ -122,6 +124,7 @@ export interface GenerateResult {
   status_code?: number,
   status?: string,
   message: string,
+  detail?: string,
   error: boolean,
   data?: {
     title: string,

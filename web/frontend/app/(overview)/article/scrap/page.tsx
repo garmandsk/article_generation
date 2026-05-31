@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { 
   Pickaxe, Play, Settings, Database, Activity, Clock, 
   CheckCircle2, FileText, FileBox, AlertCircle, ArrowUpRight, History 
@@ -8,6 +8,8 @@ import {
 import { sysLog } from "@/utils/logger";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import { ScrapResult } from "@/types/types";
+import TerminalMonitor from "@/components/TerminalMonitorProps";
+import { usePipelineStream } from "@/hooks/usePipelineStream";
 
 export default function ScrapPage() {
   // 1. State untuk 5 Input Parameter
@@ -20,9 +22,10 @@ export default function ScrapPage() {
   });
 
   // 2. State untuk UI & Monitoring
-  const [isLoading, setIsLoading] = useState(false);
   const [scrapResult, setScrapResult] = useState<ScrapResult | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+  const { isLoading, logs, progress, executeStream } = usePipelineStream();
 
   // 3. Handler Perubahan Input
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -36,9 +39,8 @@ export default function ScrapPage() {
 
   // 4. Handler Eksekusi Scrap
   const handleScrapExecute = useCallback(async () => {
-    setIsLoading(true);
+    const exec_time = "0";
     setScrapResult(null); // Reset hasil sebelumnya
-    const exec_time: string | null = "0";
 
     const payload = { ...formData };
     if (payload.mode === "older") {
@@ -50,48 +52,22 @@ export default function ScrapPage() {
     try {
       // Sesuaikan URL ini dengan endpoint FastAPI Scrap milikmu
       const scrapAPI = `http://localhost:8000/api/v1/run/scrap`; 
-      const response = await fetch(scrapAPI, {
+      
+      const result: ScrapResult = await executeStream(scrapAPI, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
         credentials: "include"
-      });
-      
-      const result = await response.json();
+      })
       if (result.status_code != 200) throw new Error(result.message || result.detail);
 
       setScrapResult(result);
-      sysLog("success", result.message, result.exec_time);
+      sysLog("success", result.message, result.exec_time || "0s");
     } catch (error) {
       sysLog("error", `Gagal melakukan scraping: ${error}`, exec_time);
       setScrapResult({ error: true, message: String(error) });
-    } finally {
-      setIsLoading(false);
     }
-  }, [formData]);
-
-  // Kontrol confirm dengan keyboard
-  useEffect(() => {
-    if (!isConfirmOpen) return;
-
-    const handleKey = (e: KeyboardEvent) => {
-      // saat enter ditekan -> eksekusi
-      if (e.key === "Enter"){
-          e.preventDefault();
-          handleScrapExecute();
-          setIsConfirmOpen(false);
-        } 
-      // saat esc ditekan -> batal
-        else if (e.key === "Escape"){
-        setIsConfirmOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKey);
-
-    // Bersihkan listener saat tidak digunakan
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [isConfirmOpen, handleScrapExecute])
+  }, [formData, executeStream]);
 
   return (
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative">
@@ -236,15 +212,9 @@ export default function ScrapPage() {
           </div>
 
           {/* Kondisi 1: Sedang Loading */}
-          {isLoading && (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4">
-              <div className="relative">
-                <div className="w-16 h-16 border-4 border-slate-800 border-t-[#E59500] rounded-full animate-spin"></div>
-                <Pickaxe className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#E59500] animate-pulse" size={24} />
-              </div>
-              <p className="animate-pulse tracking-wide">Menjelajahi situs, mohon tunggu...</p>
-            </div>
-          )}
+          {isLoading && 
+            <TerminalMonitor progress={progress} logs={logs} />
+          }
 
           {/* Kondisi 2: State Awal (Belum ada aksi) */}
           {!isLoading && !scrapResult && (

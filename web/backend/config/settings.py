@@ -32,7 +32,7 @@ DEVICE = "web"
 PLATFORM = "saas"
 
 # Path
-DB_PATH = str(ROOT_DIR / os.getenv("DB_PATH", "data/chroma_db"))
+DB_CHROMA_PATH = str(ROOT_DIR / os.getenv("DB_CHROMA_PATH", "data/chroma_db"))
 FOLDER_GENERATION_DATA_PATH = str(
     ROOT_DIR / os.getenv("FOLDER_GENERATION_DATA_PATH", "data/generation")
 )

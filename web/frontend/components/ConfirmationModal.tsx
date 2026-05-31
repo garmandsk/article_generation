@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, X } from "lucide-react";
 
 interface ConfirmationModalProps {
@@ -33,17 +33,17 @@ export default function ConfirmationModal({
   const [isClosing, setIsClosing] = useState(false);
 
   // 2. Fungsi Eksekusi Animasi 300ms
-  const handleModalClosing = () => {
+  const handleModalClosing = useCallback(() => {
     setIsClosing(true);
     setTimeout(() => {
       setRender(false);
       setIsClosing(false);
       onClose(); // Memberi tahu parent untuk mengubah state isOpen menjadi false
     }, 300);
-  };
+  }, [onClose]);
   
   // Fungsi khusus saat pengguna menekan tombol konfirmasi ("Ya, Eksekusi")
-  const handleConfirmClosing = () => {
+  const handleConfirmClosing = useCallback(() => {
     setIsClosing(true);
     setTimeout(() => {
       setRender(false);
@@ -51,7 +51,7 @@ export default function ConfirmationModal({
       onClose();
       onConfirm(); // Jalankan fungsi utama (contoh: handleGenerateExecute)
     }, 300);
-  };
+  }, [onClose, onConfirm]);
   
   // Pantau perubahan dari luar (Prop isOpen)
   useEffect(() => {
@@ -67,10 +67,28 @@ export default function ConfirmationModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen || isClosing) return;
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleModalClosing();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        handleConfirmClosing();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isClosing, handleConfirmClosing, handleModalClosing])
+
   if (!render) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
       
       {/* 3. Backdrop dengan Animasi Fade identik dengan LeftSidebar */}
       <div 
@@ -109,7 +127,7 @@ export default function ConfirmationModal({
         {/* Konten Modal (Header & Body) */}
         <div className="p-6 relative z-10 flex-1 overflow-y-auto custom-scrollbar max-h-[75vh]">
           <div className="flex items-start gap-4 mb-2">
-            <div className={`p-3 rounded-xl border flex-shrink-0 ${
+            <div className={`p-3 rounded-xl border shrink-0 ${
               isDestructive 
                 ? "bg-red-500/10 text-red-500 border-red-500/20" 
                 : "bg-[#E59500]/10 text-[#E59500] border-[#E59500]/20"

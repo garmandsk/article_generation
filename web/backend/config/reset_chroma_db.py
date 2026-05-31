@@ -18,7 +18,7 @@ from models.models import Article
 
 def nuke_and_reset():
     print("🔥 Menghapus koleksi hantu di ChromaDB...")
-    client = chromadb.PersistentClient(path=settings.DB_PATH)
+    client = chromadb.PersistentClient(path=settings.DB_CHROMA_PATH)
 
     try:
         # Menghapus koleksi lama sampai akar-akarnya

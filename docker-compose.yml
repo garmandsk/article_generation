@@ -4,7 +4,7 @@ services:
     environment:
       - POSTGRES_USER=${PG_DB_USER}
       - POSTGRES_PASSWORD=${PG_DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_DB=${DB_NAME_PROD}
     ports:
       - "5432:5432"
     volumes:
@@ -16,9 +16,9 @@ services:
       - "8000:8000"
     environment:
       # URL ini otomatis mengarah ke container 'db' di atas
-      - DATABASE_URL=postgresql://postgres:123456@db:5432/agc_db_prod
-      - DB_NAME=${DB_NAME}
-      - DB_PATH=${DB_PATH}
+      - DATABASE_URL=${DATABASE_URL_PROD}
+      - DB_NAME=${DB_NAME_PROD}
+      - DB_CHROMA_PATH=${DB_CHROMA_PATH}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - MDL_USERNAME=${MDL_USERNAME}
       - MDL_PASSWORD=${MDL_PASSWORD}
@@ -44,6 +44,11 @@ services:
       - URL_LOGIN=${URL_LOGIN}
       - URL_ARTICLE_LIST=${URL_ARTICLE_LIST}
       - URL_ARTICLE_CONTENT=${URL_ARTICLE_CONTENT}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     depends_on:
       - db
 

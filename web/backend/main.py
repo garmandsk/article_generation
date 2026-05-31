@@ -10,13 +10,24 @@ if "SSL_CERT_FILE" in os.environ:
 if "REQUESTS_CA_BUNDLE" in os.environ:
     del os.environ["REQUESTS_CA_BUNDLE"]
 
+import json
 import time
+from collections.abc import AsyncIterable
 from datetime import datetime, timedelta
 from typing import Annotated
 
 import requests
-from fastapi import Cookie, Depends, FastAPI, HTTPException, Query, Response
+from fastapi import (
+    Cookie,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.sse import EventSourceResponse, ServerSentEvent
 from jose import jwt
 from sqlalchemy import asc, desc, func, not_, or_
 from sqlalchemy.orm import Session
@@ -33,10 +44,11 @@ from schemas.payload import (
     ScrapPayload,
 )
 from services import (
-    cluster_articles,
-    generate_article,
-    scrap_articles,
+    cluster_articles_stream,
+    generate_article_stream,
+    scrap_articles_stream,
 )
+from utils import log_msg
 
 # Inisialisasi database pg
 Base.metadata.create_all(bind=engine)
@@ -117,6 +129,15 @@ def create_access_token(data: dict):
     # Proses signing
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, settings.JWT_ALGORITHM)
     return encoded_jwt
+
+
+@app.get("/health")
+def health_check():
+    return {
+        "status_code": 200,
+        "status": "ok",
+        "message": "Health Ok"
+    }
 
 
 # Login dan pembuatan cookie token
@@ -236,7 +257,7 @@ async def get_data_articles(
                     "id": str(art.id),
                     "title": art.title,
                     "content": art.content,
-                    "type": art.status,
+                    "status": art.status,
                     # Gunakan tanggal hari ini sebagai fallback jika kolom
                     # created_at tidak ada
                     "date": art.created_at.strftime("%Y-%m-%d")
@@ -484,50 +505,143 @@ async def get_data_cluster(
     }
 
 
-# Scraping
-@app.post("/api/v1/run/scrap")
-# Cookie, query param
-async def run_scrap(
-    payload: ScrapPayload,
-    response: Response,
+@app.get("/api/v1/data/export")
+def export_database(
+    db: Session = Depends(get_db), token: str = Depends(get_mydigilearn_token)
+):
+    try:
+        articles = db.query(Article).all()
+
+        # Susun data
+        export_data = []
+        for art in articles:
+            export_data.append(
+                {
+                    "id": art.id,
+                    "id_inc": art.id_inc,
+                    "slug": art.slug,
+                    "title": art.title,
+                    "content": art.content,
+                    "status": art.status,
+                    "cluster_topic": art.cluster_topic,
+                    "cluster_keywords": art.cluster_keywords,
+                    "is_recommended": art.is_recommended,
+                }
+            )
+
+        # Ubah menjadi string json
+        json_str = json.dumps(export_data, indent=4)
+
+        # Agar langsung terdownload
+        return Response(
+            content=json_str,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": "attachment; "
+                "filename=backup_database_article.json"
+            },
+        )
+    except Exception as e:
+        return {"status_code": 500, "message": f"Gagal melakukan export: {e}"}
+
+
+@app.post("/api/v1/data/import")
+async def import_database(
+    file: UploadFile,
+    db: Session = Depends(get_db),
     token: str = Depends(get_mydigilearn_token),
 ):
-    # print(f"max_scrap dari query: {max_scrap}")
+    start_time = time.perf_counter()
 
-    result = await scrap_articles(
-        payload=payload,
-        token=token,
-    )
+    # Validasi tipe file
+    if not file.filename.endswith(".json"):
+        return {
+            "status_code": 400,
+            "status": "error",
+            "message": "File harus berformat JSON!",
+        }
 
-    response.status_code = result["status_code"]
+    try:
+        contents = await file.read()
+        data = json.loads(contents)
 
-    return result
+        if not isinstance(data, list):
+            return {
+                "status_code": 400,
+                "status": "error",
+                "message": "Format JSON tidak valid. Harus berupa List of Objects.",
+            }
+
+        import_count = 0
+        for item in data:
+            db.merge(Article(**item))
+            import_count += 1
+        db.commit()
+
+        end_time = time.perf_counter()
+        exec_time_sec = str(round(end_time - start_time)) + "s"
+
+        return {
+            "status_code": 200,
+            "status": "success",
+            "message": f"Berhasil mengimpor {import_count} artikel ke dalam database!",
+            "exec_time": exec_time_sec,
+        }
+    except json.JSONDecodeError:
+        return {
+            "status_code": 400,
+            "status": "error",
+            "message": "File JSON korup atau rusak.",
+        }
+    except Exception as e:
+        db.rollback()
+        return {
+            "status_code": 500,
+            "status": "error",
+            "message": f"Gagal melakukan import: {str(e)}",
+        }
+
+
+@app.post("/api/v1/run/scrap", response_class=EventSourceResponse)
+async def run_scrap(
+    payload: ScrapPayload,
+    token: str = Depends(get_mydigilearn_token),
+) -> AsyncIterable[ServerSentEvent]:
+
+    # Awal
+    yield ServerSentEvent(data=log_msg("Membangun koneksi scraping aman...", 0))
+
+    # Eksekusi Orkestrator dan semburkan eventnya ke Frontend
+    async for event_dict in scrap_articles_stream(payload, token):
+        yield ServerSentEvent(data=event_dict)
 
 
 # Clustering
-@app.post("/api/v1/run/cluster")
+@app.post("/api/v1/run/cluster", response_class=EventSourceResponse)
 # Cookie
-def run_cluster(
+async def run_cluster(
     payload: ClusterPayload,
     response: Response,
     token: str = Depends(get_mydigilearn_token),
-):
+) -> AsyncIterable[ServerSentEvent]:
     # print(f"Payload clustering: \n{payload}")
-    result = cluster_articles(payload)
 
-    response.status_code = result["status_code"]
+    # Awal
+    yield ServerSentEvent(data=log_msg("Membangun koneksi clustering...", 0))
 
-    return result
+    # Eksekusi Streaming
+    async for event_dict in cluster_articles_stream(payload, token):
+        yield ServerSentEvent(data=event_dict)
 
 
 # Generating
-@app.post("/api/v1/run/generate")
+@app.post("/api/v1/run/generate", response_class=EventSourceResponse)
 # Cookie
 async def run_generate(
     payload: GeneratePayload,
     response: Response,
     token: str = Depends(get_mydigilearn_token),
-):
+) -> AsyncIterable[ServerSentEvent]:
     # return {
     #     "status_code": 400,
     #     "status": "fail",
@@ -538,8 +652,9 @@ async def run_generate(
     # payloadJson = payload.json()
     # print(f"payload json: \n${payloadJson}")
 
-    result = await generate_article(payload)
+    # Awal
+    yield ServerSentEvent(data=log_msg("Membangun koneksi generator...", 0))
 
-    response.status_code = result["status_code"]
-
-    return result
+    # Eksekusi
+    async for event_dict in generate_article_stream(payload):
+        yield ServerSentEvent(data=event_dict)

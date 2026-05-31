@@ -1,3 +1,3 @@
-from .cluster import cluster_articles
-from .generate import generate_article
-from .scrap import scrap_articles, scrap_content_articles, scrap_list_articles
+from .cluster import cluster_articles_stream
+from .generate import generate_article_stream
+from .scrap import scrap_articles_stream, scrap_content_articles

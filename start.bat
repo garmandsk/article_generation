@@ -16,7 +16,7 @@ echo %CYAN%  Memulai Instalasi dan Menjalankan AGC Dashboard%RESET%
 echo %CYAN%===================================================%RESET%
 echo.
 echo %YELLOW%Membangun container... (Ini mungkin memakan waktu beberapa menit)%RESET%
-docker compose up -d --build
+docker compose up -d --build --wait
 
 :: Cek apakah ada error dari Docker
 if %errorlevel% neq 0 (

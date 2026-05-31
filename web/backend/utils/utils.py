@@ -130,7 +130,7 @@ def save_to_chromadb(token, data_to_sync):
 
     print("🚀 Memulai Vektorisasi Otomatis via ChromaDB...")
 
-    client = chromadb.PersistentClient(path=settings.DB_PATH)
+    client = chromadb.PersistentClient(path=settings.DB_CHROMA_PATH)
     print(f"model embedding: {settings.MODEL_EMBEDDING_NAME}")
     embedder = embedding_functions.SentenceTransformerEmbeddingFunction(
         model_name=settings.MODEL_EMBEDDING_NAME
@@ -149,7 +149,7 @@ def save_to_chromadb(token, data_to_sync):
 
     print(f"🎉 Selesai! {len(daftar_id)} vektor baru berhasil ditanam ke ChromaDB.")
     print(f"📦 Total data di ChromaDB saat ini: {collection.count()} artikel.")
-    print(f"db path: {settings.DB_PATH}")
+    print(f"db path: {settings.DB_CHROMA_PATH}")
 
 
 def save_generated_article(title_article, data_article):
@@ -184,9 +184,12 @@ def clear_html(html_tag):
         return ""
     return BeautifulSoup(html_tag, "html.parser").get_text(separator=" ")
 
-
 def text_normalization(teks):
     teks = teks.lower()  # Huruf kecil semua
     teks = re.sub(r"[^a-z0-9\s]", " ", teks)  # Buang karakter aneh/tanda baca
     teks = re.sub(r"\s+", " ", teks).strip()  # Rapikan spasi ganda
     return teks
+
+def log_msg(text: str, step: int = 0, total: int = 100, status: str = "processing"):
+    print(text, flush=True) # Mencetak langsung ke Terminal Docker
+    return {"status": status, "text": text, "step": step, "total": total}

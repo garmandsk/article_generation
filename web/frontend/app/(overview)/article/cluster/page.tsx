@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { usePipelineStream } from "@/hooks/usePipelineStream";
 import { 
   Network, BrainCircuit, Play, Settings, Layers, 
   Zap, BarChart3, CheckCircle2, Clock, AlertCircle,
@@ -9,6 +10,7 @@ import {
 import { sysLog } from "@/utils/logger";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import { ClusterList, ClusterResult } from "@/types/types";
+import TerminalMonitor from "@/components/TerminalMonitorProps";
 
 export default function ClusterPage() {
   // 1. State Lengkap sesuai Referensi (5 Group Input)
@@ -37,7 +39,7 @@ export default function ClusterPage() {
     reduce_frequent_words: true
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, logs, progress, executeStream } = usePipelineStream();
   const [clusterResult, setClusterResult] = useState<ClusterResult | null>(null);
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
@@ -54,54 +56,27 @@ export default function ClusterPage() {
   };
 
   const handleClusterExecute = useCallback(async () => {
-    setIsLoading(true);
     const exec_time: string | null = "0";
     sysLog("info", "Memulai proses Clustering AI...", exec_time);
 
     try {
       const clusterAPI = "http://localhost:8000/api/v1/run/cluster";
-      const response = await fetch(clusterAPI, {
+      const result: ClusterResult = await executeStream(clusterAPI, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
         credentials: "include"
       });
 
-      const result = await response.json();
       if (result.status_code != 200) throw new Error(result.message || result.detail);
       
       setClusterResult(result);
-      sysLog("success", "Clustering selesai dieksekusi.", result.exec_time);
+      sysLog("success", "Clustering selesai dieksekusi.", result.exec_time || "0");
     } catch (error) {
       sysLog("error", `Gagal melakukan clustering: ${error}`, exec_time);
       setClusterResult({ error: true, message: String(error) });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [formData]);
-
-  // Kontrol confirm dengan keyboard
-  useEffect(() => {
-    if (!isConfirmOpen) return;
-
-    const handleKey = (e: KeyboardEvent) => {
-      // saat enter ditekan -> eksekusi
-      if (e.key === "Enter"){
-          e.preventDefault();
-          handleClusterExecute();
-          setIsConfirmOpen(false);
-        } 
-      // saat esc ditekan -> batal
-        else if (e.key === "Escape"){
-        setIsConfirmOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKey);
-
-    // Bersihkan listener saat tidak digunakan
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [isConfirmOpen, handleClusterExecute])
+    } 
+  }, [formData, executeStream]);
 
   return (
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative pb-10">
@@ -295,15 +270,9 @@ export default function ClusterPage() {
           </div>
           
           {/* Kondisi 1: Sedang Loading */}
-          {isLoading && (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4">
-              <div className="relative">
-                <div className="w-16 h-16 border-4 border-slate-800 border-t-[#E59500] rounded-full animate-spin"></div>
-                <Network className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#E59500] animate-pulse" size={24} />
-              </div>
-              <p className="animate-pulse tracking-wide">BERTopic sedang bekerja, mohon tunggu...</p>
-            </div>
-          )}
+          {isLoading && 
+            <TerminalMonitor progress={progress} logs={logs} />
+          }
 
           {/* Kondisi 2: State Awal (Belum ada aksi) */}
           {!isLoading && !clusterResult && (
