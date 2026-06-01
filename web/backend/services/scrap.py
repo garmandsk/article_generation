@@ -113,6 +113,7 @@ async def scrap_newer_list_articles(
                     yield log_msg(f"⚠️ Gangguan jaringan pada halaman {page}: {e}")
                     break
 
+                last_page = page
                 page += 1
                 await asyncio.sleep(2)
 
@@ -131,6 +132,7 @@ async def scrap_newer_list_articles(
             "status_code": 200,
             "status": "success",
             "scrap_count": len(newer_articles_batch),
+            "last_page": last_page,
         }
 
     finally:
@@ -225,6 +227,7 @@ async def scrap_older_list_articles(headers, max_scrap, limit_article_per_page):
                     yield log_msg(f"⚠️ Error di halaman {page}: {e}")
                     break
 
+                last_page = page
                 page += 1
                 await asyncio.sleep(2)
 
@@ -248,6 +251,7 @@ async def scrap_older_list_articles(headers, max_scrap, limit_article_per_page):
             "status_code": 200,
             "status": "success",
             "scrap_count": len(older_articles_batch),
+            "last_page": last_page,
         }
 
     finally:
@@ -339,7 +343,12 @@ async def scrap_articles_stream(payload, token):
     start_time = time.perf_counter()
     headers = settings.BASE_HEADERS.copy()
     headers["Authorization"] = f"Bearer {token}"
-    details_scrap = {"newer_article": 0, "older_article": 0}
+    details_scrap = {
+        "newer_article": 0,
+        "older_article": 0,
+        "last_page_newer_article": 0,
+        "last_page_older_article": 0,
+    }
 
     mode = payload.mode
     max_scrap = payload.max_scrap
@@ -355,6 +364,7 @@ async def scrap_articles_stream(payload, token):
             ):
                 if evt.get("type") == "result":
                     details_scrap["newer_article"] = evt["scrap_count"]
+                    details_scrap["last_page_newer_article"] = evt["last_page"]
                 else:
                     if mode == "both" and "step" in evt:
                         # Skala dari 0-35% menjadi 0-17% agar tidak bentrok dengan older
@@ -368,6 +378,7 @@ async def scrap_articles_stream(payload, token):
             ):
                 if evt.get("type") == "result":
                     details_scrap["older_article"] = evt["scrap_count"]
+                    details_scrap["last_page_older_article"] = evt["last_page"]
                 else:
                     if mode == "both" and "step" in evt:
                         # Skala dari 0-35% menjadi 0-17% agar tidak bentrok dengan older
@@ -388,12 +399,11 @@ async def scrap_articles_stream(payload, token):
         try:
             unsynced_articles = (
                 db.query(Article)
-                .filter(Article.status.in_([
-                    "scraped",
-                    "vectorized",
-                    "clustered",
-                    "outlier_cluster"
-                ]))
+                .filter(
+                    Article.status.in_(
+                        ["scraped", "vectorized", "clustered", "outlier_cluster"]
+                    )
+                )
                 .all()
             )
             if unsynced_articles:

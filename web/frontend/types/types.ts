@@ -82,6 +82,8 @@ export interface ScrapResult {
     details_scrap: {
       newer_article: number,
       older_article: number,
+      last_page_newer_article: number,
+      last_page_older_article: number
     }
     system_health: {
         total_list: number,

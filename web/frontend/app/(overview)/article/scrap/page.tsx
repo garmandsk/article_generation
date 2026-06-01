@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { 
-  Pickaxe, Play, Settings, Database, Activity, Clock, 
+  Pickaxe, Play, Settings, Database, Activity, Clock,
   CheckCircle2, FileText, FileBox, AlertCircle, ArrowUpRight, History 
 } from "lucide-react";
 import { sysLog } from "@/utils/logger";
@@ -10,6 +10,7 @@ import ConfirmationModal from "@/components/ConfirmationModal";
 import { ScrapResult } from "@/types/types";
 import TerminalMonitor from "@/components/TerminalMonitorProps";
 import { usePipelineStream } from "@/hooks/usePipelineStream";
+import { API_V1 } from "@/utils/api";
 
 export default function ScrapPage() {
   // 1. State untuk 5 Input Parameter
@@ -51,7 +52,7 @@ export default function ScrapPage() {
 
     try {
       // Sesuaikan URL ini dengan endpoint FastAPI Scrap milikmu
-      const scrapAPI = `http://localhost:8000/api/v1/run/scrap`; 
+      const scrapAPI = `${API_V1}/run/scrap`; 
       
       const result: ScrapResult = await executeStream(scrapAPI, {
         method: "POST",
@@ -234,11 +235,11 @@ export default function ScrapPage() {
           )}
 
           {/* Kondisi 4: Sukses Render Data */}
-          {!isLoading && scrapResult && !scrapResult.error && scrapResult.status === "success" && scrapResult.data && (
+        {!isLoading && scrapResult && !scrapResult.error && scrapResult.status === "success" && scrapResult.data && (
             <div className="flex-1 flex flex-col animate-in slide-in-from-bottom-4 duration-500">
               
               {/* 1. HIGHLIGHT BANNER */}
-              <div className="flex flex-col items-center justify-center py-6 bg-emerald-950/30 rounded-xl border border-emerald-500/20 mb-6 text-center px-4 relative overflow-hidden">
+              <div className="flex flex-col items-center justify-center py-6 bg-emerald-950/30 rounded-xl border border-emerald-500/20 mb-6 text-center px-4 relative overflow-hidden shadow-inner">
                 {/* Efek Glow Latar Belakang */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-emerald-500/20 blur-[50px] rounded-full pointer-events-none" />
                 
@@ -259,7 +260,7 @@ export default function ScrapPage() {
                 <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">System Health (Current DB)</h5>
                 <div className="grid grid-cols-3 gap-4">
                   {/* Health: Total List */}
-                  <div className="bg-[#02040F] p-4 rounded-xl border border-slate-800 flex flex-col justify-center gap-2">
+                  <div className="bg-[#02040F] p-4 rounded-xl border border-slate-800 flex flex-col justify-center gap-2 shadow-sm">
                     <div className="flex items-center gap-2 text-blue-400">
                       <FileText size={16} />
                       <span className="text-xs uppercase font-semibold tracking-wider">Total List</span>
@@ -270,7 +271,7 @@ export default function ScrapPage() {
                   </div>
                   
                   {/* Health: Total Content */}
-                  <div className="bg-[#02040F] p-4 rounded-xl border border-slate-800 flex flex-col justify-center gap-2">
+                  <div className="bg-[#02040F] p-4 rounded-xl border border-slate-800 flex flex-col justify-center gap-2 shadow-sm">
                     <div className="flex items-center gap-2 text-[#E59500]">
                       <FileBox size={16} />
                       <span className="text-xs uppercase font-semibold tracking-wider">Total Content</span>
@@ -281,7 +282,7 @@ export default function ScrapPage() {
                   </div>
 
                   {/* Health: Total ChromaDB */}
-                  <div className="bg-[#02040F] p-4 rounded-xl border border-slate-800 flex flex-col justify-center gap-2">
+                  <div className="bg-[#02040F] p-4 rounded-xl border border-slate-800 flex flex-col justify-center gap-2 shadow-sm">
                     <div className="flex items-center gap-2 text-purple-400">
                       <Database size={16} />
                       <span className="text-xs uppercase font-semibold tracking-wider">Chroma DB</span>
@@ -294,37 +295,65 @@ export default function ScrapPage() {
               </div>
 
               {/* 3. EXECUTION DETAILS */}
-              <div className="flex-1 bg-[#02040F]/80 rounded-xl border border-slate-800 p-5 flex flex-col">
-                <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-800 pb-3">
+              <div className="flex-1 bg-[#02040F]/80 rounded-xl border border-slate-800 p-5 gap-6 flex flex-col shadow-lg backdrop-blur-sm">
+                <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800 pb-3">
                   Scraping Details
                 </h5>
                 
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  {/* Newer Article Box */}
-                  <div className="bg-[#0A0E1A] border border-emerald-500/20 p-4 rounded-lg flex items-center justify-between hover:border-emerald-500/40 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-md">
-                        <ArrowUpRight size={18} />
+                <div className="grid grid-cols-2 gap-4">
+                  
+                  {/* Newer Article Box Berdesain Kartu Bertingkat */}
+                  <div className="bg-[#0A0E1A] border border-emerald-500/20 rounded-xl overflow-hidden flex flex-col hover:border-emerald-500/40 transition-colors shadow-sm group">
+                    {/* Bagian Utama: Jumlah Artikel */}
+                    <div className="p-4 border-b border-emerald-500/10 flex items-center justify-between bg-emerald-500/5 group-hover:bg-emerald-500/10 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-md">
+                          <ArrowUpRight size={18} />
+                        </div>
+                        <span className="text-sm font-semibold text-slate-200">Newer Article</span>
                       </div>
-                      <span className="text-sm font-medium text-slate-300">Newer Article</span>
+                      <span className="text-2xl font-bold text-emerald-400">
+                        {scrapResult?.data.details_scrap?.newer_article || 0}
+                      </span>
                     </div>
-                    <span className="text-2xl font-bold text-emerald-400">
-                      {scrapResult?.data.details_scrap?.newer_article || 0}
-                    </span>
+                    {/* Bagian Bawah: Checkpoint Last Page */}
+                    <div className="p-3 px-4 flex items-center justify-between bg-[#0A0E1A]">
+                      <div className="flex items-center gap-2">
+                        <FileText size={14} className="text-slate-500" />
+                        <span className="text-xs font-medium text-slate-400">Last Page Checkpoint</span>
+                      </div>
+                      <span className="text-sm font-bold text-slate-300">
+                        Page {scrapResult?.data.details_scrap?.last_page_newer_article || 0}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Older Article Box */}
-                  <div className="bg-[#0A0E1A] border border-slate-700/50 p-4 rounded-lg flex items-center justify-between hover:border-slate-600 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-slate-800 text-slate-400 rounded-md">
-                        <History size={18} />
+                  {/* Older Article Box Berdesain Kartu Bertingkat */}
+                  <div className="bg-[#0A0E1A] border border-slate-700/50 rounded-xl overflow-hidden flex flex-col hover:border-slate-600 transition-colors shadow-sm group">
+                    {/* Bagian Utama: Jumlah Artikel */}
+                    <div className="p-4 border-b border-slate-700/50 flex items-center justify-between bg-slate-800/20 group-hover:bg-slate-800/40 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-slate-800 text-slate-400 rounded-md">
+                          <History size={18} />
+                        </div>
+                        <span className="text-sm font-semibold text-slate-200">Older Article</span>
                       </div>
-                      <span className="text-sm font-medium text-slate-400">Older Article</span>
+                      <span className="text-2xl font-bold text-slate-400">
+                        {scrapResult?.data.details_scrap?.older_article || 0}
+                      </span>
                     </div>
-                    <span className="text-2xl font-bold text-slate-400">
-                      {scrapResult?.data.details_scrap?.older_article || 0}
-                    </span>
+                    {/* Bagian Bawah: Checkpoint Last Page */}
+                    <div className="p-3 px-4 flex items-center justify-between bg-[#0A0E1A]">
+                      <div className="flex items-center gap-2">
+                        <FileText size={14} className="text-slate-500" />
+                        <span className="text-xs font-medium text-slate-400">Last Page Checkpoint</span>
+                      </div>
+                      <span className="text-sm font-bold text-slate-300">
+                        Page {scrapResult?.data.details_scrap?.last_page_older_article || 0}
+                      </span>
+                    </div>
                   </div>
+
                 </div>
               </div>
 

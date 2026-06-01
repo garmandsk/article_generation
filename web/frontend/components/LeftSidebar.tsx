@@ -1,14 +1,25 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Pickaxe, Network, Sparkles, LogOut, ChevronLeft, ChevronRight, X, Info, Archive } from "lucide-react"; 
-
+import {
+  Home,
+  Pickaxe,
+  Network,
+  Sparkles,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Info,
+  Archive
+} from "lucide-react";
+import { API_V1 } from "@/utils/api";
 
 export default function LeftSidebar() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false)
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [infoPage, setInfoPage] = useState(0);
@@ -19,7 +30,7 @@ export default function LeftSidebar() {
     { name: "Storage", icon: Archive, path: "/storage" },
     { name: "Scrap", icon: Pickaxe, path: "/article/scrap" },
     { name: "Cluster", icon: Network, path: "/article/cluster" },
-    { name: "Generate", icon: Sparkles, path: "/article/generate" },
+    { name: "Generate", icon: Sparkles, path: "/article/generate" }
   ];
 
   // Data konten info
@@ -27,25 +38,25 @@ export default function LeftSidebar() {
     {
       title: "🚀 Selamat Datang di AGC Dashboard",
       icon: "🏠",
-      desc: "Aplikasi ini dirancang untuk otomatisasi konten mulai dari penarikan data hingga penulisan artikel berbasis AI. Gunakan sidebar kiri untuk navigasi antar fitur utama.",
+      desc: "Aplikasi ini dirancang untuk otomatisasi konten mulai dari penarikan data hingga penulisan artikel berbasis AI. Gunakan sidebar kiri untuk navigasi antar fitur utama."
     },
     {
       title: "🕸️ Modul Scraping",
       icon: "📡",
-      desc: "Di sini sistem akan menembus platform e-learning. Pastikan URL yang dimasukkan valid. Data ditarik secara background dan disimpan dalam format mentah (raw).",
+      desc: "Di sini sistem akan menembus platform e-learning. Pastikan URL yang dimasukkan valid. Data ditarik secara background dan disimpan dalam format mentah (raw)."
     },
     {
       title: "🧠 Clustering AI",
       icon: "📂",
-      desc: "Sistem akan menganalisis ribuan artikel mentah dan mengelompokkannya secara otomatis berdasarkan kemiripan makna menggunakan algoritma Machine Learning.",
+      desc: "Sistem akan menganalisis ribuan artikel mentah dan mengelompokkannya secara otomatis berdasarkan kemiripan makna menggunakan algoritma Machine Learning."
     },
     {
       title: "✍️ Article Generator",
       icon: "🪄",
-      desc: "Tahap akhir di mana AI akan meracik cluster data menjadi artikel baru yang unik, SEO-friendly, dan siap untuk dipublikasikan secara massal.",
+      desc: "Tahap akhir di mana AI akan meracik cluster data menjadi artikel baru yang unik, SEO-friendly, dan siap untuk dipublikasikan secara massal."
     }
   ];
-  
+
   const handleInfoClosing = () => {
     setIsInfoClosing(true);
     setTimeout(() => {
@@ -54,10 +65,10 @@ export default function LeftSidebar() {
       setInfoPage(0);
     }, 300);
   };
-  
+
   const handleLogout = async () => {
     try {
-      const logoutAPI = "http://localhost:8000/api/v1/auth/logout"
+      const logoutAPI = `${API_V1}/auth/logout`;
       await fetch(logoutAPI, {
         method: "POST",
         headers: {
@@ -68,35 +79,30 @@ export default function LeftSidebar() {
     } catch (error) {
       console.error("Gagal menghubungi server untuk logout: ", error);
     } finally {
-      router.push("/login ")
+      router.push("/login ");
     }
-  }
-  
+  };
+
   useEffect(() => {
     if (!isInfoOpen || isInfoClosing) return;
 
     const handleKey = (e: KeyboardEvent) => {
-
       // Saat arrow kanan ditekan
       if (e.key === "ArrowRight") {
-
         // saat pointer bukan di ujung kanan
         if (infoPage < infoContent.length - 1) setInfoPage((prev) => prev + 1);
-
         // saat pointer di ujung kanan
         else if (infoPage >= infoContent.length - 1) setInfoPage((prev) => prev - prev);
-      } 
-      
+      }
+
       //  saat arrow kiri ditekan
       else if (e.key === "ArrowLeft") {
-
         // saat pointer bukan di ujung kiri
         if (infoPage > 0) setInfoPage((prev) => prev - 1);
-
         // saat pointer di ujung kiri
-        else if (infoPage <= 0) setInfoPage((prev) => (prev * 0) + infoContent.length - 1)
-      } 
-      
+        else if (infoPage <= 0) setInfoPage((prev) => prev * 0 + infoContent.length - 1);
+      }
+
       // saat tombol esc, enter, spasi ditekan
       else if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
         handleInfoClosing();
@@ -107,30 +113,26 @@ export default function LeftSidebar() {
 
     // Bersihkan listener saat tidak digunakan
     return () => window.removeEventListener("keydown", handleKey);
-  }, [isInfoOpen, isInfoClosing, infoPage, infoContent.length])
-  
+  }, [isInfoOpen, isInfoClosing, infoPage, infoContent.length]);
 
   return (
-    <aside 
+    <aside
       className={`${isLeftSidebarOpen ? "w-64" : "w-20"} transition-all duration-300 ease-in-out bg-[#002642] flex flex-col justify-between border-r border-slate-700/50 z-20`}
     >
-
       {/* Toggler area */}
       <div className="h-20 flex items-center justify-between px-3 border-b border-slate-700/50">
-        {isLeftSidebarOpen 
-        ? (
+        {isLeftSidebarOpen ? (
           <>
-          <span className="text-2xl font-bold tracking-wider text-white">AGC</span>
-          <button 
-            onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
-            className="rounded-md hover:bg-slate-700/50 text-slate-300 transition-colors"
-          >
-            <ChevronLeft size={24} /> 
-          </button>
+            <span className="text-2xl font-bold tracking-wider text-white">AGC</span>
+            <button
+              onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
+              className="rounded-md hover:bg-slate-700/50 text-slate-300 transition-colors"
+            >
+              <ChevronLeft size={24} />
+            </button>
           </>
-        )
-        : (
-          <button 
+        ) : (
+          <button
             onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
             className="rounded-md hover:bg-slate-700/50 text-slate-300 transition-colors mx-auto"
           >
@@ -144,19 +146,19 @@ export default function LeftSidebar() {
         {menuItems.map((item) => {
           const isActive = pathname === item.path;
           return (
-            <Link 
-              key={item.name} 
+            <Link
+              key={item.name}
               href={item.path}
               className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${
-                isActive 
-                ? "bg-[#E59500] text-[#02040F] font-semibold shadow-lg" // Warna aksen emas jika aktif
-                : "text-slate-300 hover:bg-[#840032]/40 hover:text-white" // Sedikit marun saat di-hover
+                isActive
+                  ? "bg-[#E59500] text-[#02040F] font-semibold shadow-lg" // Warna aksen emas jika aktif
+                  : "text-slate-300 hover:bg-[#840032]/40 hover:text-white" // Sedikit marun saat di-hover
               }`}
             >
-              <item.icon 
-                size={20} 
+              <item.icon
+                size={20}
                 className={!isLeftSidebarOpen ? "mx-auto" : ""}
-                stroke="currentColor" 
+                stroke="currentColor"
                 fill={isActive ? "currentColor" : "none"}
               />
               {isLeftSidebarOpen && <span>{item.name}</span>}
@@ -164,10 +166,9 @@ export default function LeftSidebar() {
           );
         })}
       </nav>
-        
+
       {/* Bottom button */}
       <div className="p-3 border-t border-slate-700/50">
-        
         {/* Info Button */}
         <button
           onClick={() => setIsInfoOpen(true)}
@@ -199,11 +200,11 @@ export default function LeftSidebar() {
           </svg>
           {isLeftSidebarOpen && <span>Source Code</span>}
         </a>
-        
+
         {/* Logout Button */}
-        <button 
-        onClick={handleLogout}
-        className={`flex items-center gap-3 px-3 py-3 w-full rounded-lg text-red-500 hover:bg-red-500/10 transition-all ${!isLeftSidebarOpen && "justify-center"}`}
+        <button
+          onClick={handleLogout}
+          className={`flex items-center gap-3 px-3 py-3 w-full rounded-lg text-red-500 hover:bg-red-500/10 transition-all ${!isLeftSidebarOpen && "justify-center"}`}
         >
           <LogOut size={20} />
           {isLeftSidebarOpen && <span>Log Out</span>}
@@ -213,24 +214,24 @@ export default function LeftSidebar() {
       {/* MODAL INFO POPUP */}
       {isInfoOpen && (
         <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-          
           {/* 1. Backdrop dengan Animasi Fade-In */}
-          <div 
+          <div
             className={`absolute inset-0 bg-black/80 backdrop-blur-md fill-mode-forwards ${
               isInfoClosing
                 ? "animate-out fade-out duration-300"
                 : "animate-in fade-in duration-300"
-              }`}
+            }`}
             onMouseDown={handleInfoClosing}
           />
 
           {/* 2. Modal Box dengan Animasi Zoom-In + Bounce */}
-          <div className={`relative w-full max-w-lg bg-[#0A0E1A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col fill-mode-forwards ${
-            isInfoClosing 
-              ? "animate-out zoom-out-95 fade-out slide-out-to-bottom-4 duration-300"
-              : "animate-in zoom-in-95 fade-in slide-in-from-bottom-4 duration-300"
-            }`}>
-            
+          <div
+            className={`relative w-full max-w-lg bg-[#0A0E1A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col fill-mode-forwards ${
+              isInfoClosing
+                ? "animate-out zoom-out-95 fade-out slide-out-to-bottom-4 duration-300"
+                : "animate-in zoom-in-95 fade-in slide-in-from-bottom-4 duration-300"
+            }`}
+          >
             {/* Glow Effect di pojok modal */}
             <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#E59500]/10 blur-[80px] pointer-events-none" />
 
@@ -244,7 +245,10 @@ export default function LeftSidebar() {
                   Step {infoPage + 1} of {infoContent.length}
                 </span>
               </div>
-              <button onClick={handleInfoClosing} className="text-slate-500 hover:text-white transition-colors">
+              <button
+                onClick={handleInfoClosing}
+                className="text-slate-500 hover:text-white transition-colors"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -253,7 +257,9 @@ export default function LeftSidebar() {
             <div className="p-8 text-center min-h-[280px] flex flex-col items-center justify-center relative z-10">
               <div key={infoPage} className="animate-in slide-in-from-right-8 fade-in duration-500">
                 <div className="text-5xl mb-6">{infoContent[infoPage].icon}</div>
-                <h2 className="text-2xl font-bold text-white mb-4">{infoContent[infoPage].title}</h2>
+                <h2 className="text-2xl font-bold text-white mb-4">
+                  {infoContent[infoPage].title}
+                </h2>
                 <p className="text-slate-400 leading-relaxed text-sm">
                   {infoContent[infoPage].desc}
                 </p>
@@ -262,17 +268,16 @@ export default function LeftSidebar() {
 
             {/* Navigasi / Footer */}
             <div className="p-5 bg-white/5 flex items-center justify-between relative z-10">
-              
               {/* Indikator Titik (Dots) */}
               <div className="flex gap-2 items-center">
                 {infoContent.map((_, idx) => (
-                  <button 
+                  <button
                     key={idx}
                     onClick={() => setInfoPage(idx)}
                     aria-label={`pindah ke halaman ${idx + 1}`}
                     className={`h-3 w-3 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#E59500]/50 ${
-                      idx === infoPage 
-                        ? "w-6 bg-[#E59500]" 
+                      idx === infoPage
+                        ? "w-6 bg-[#E59500]"
                         : "w-1.5 bg-slate-700 hover:bg-slate-400 cursor-pointer"
                     }`}
                   />
@@ -282,18 +287,18 @@ export default function LeftSidebar() {
               {/* Tombol Kontrol */}
               <div className="flex gap-2">
                 {infoPage > 0 && (
-                  <button 
-                    onClick={() => setInfoPage(prev => prev - 1)}
+                  <button
+                    onClick={() => setInfoPage((prev) => prev - 1)}
                     className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors"
                   >
                     Back
                   </button>
                 )}
-                
-                <button 
+
+                <button
                   onClick={() => {
                     if (infoPage < infoContent.length - 1) {
-                      setInfoPage(prev => prev + 1);
+                      setInfoPage((prev) => prev + 1);
                     } else {
                       handleInfoClosing();
                     }
@@ -304,10 +309,9 @@ export default function LeftSidebar() {
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       )}
     </aside>
-  )
-};
+  );
+}

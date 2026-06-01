@@ -35,7 +35,7 @@ services:
       - FILE_TOPIC_DATA_PATH=${FILE_TOPIC_DATA_PATH}
       - FILE_CLUSTERING_DATA_PATH=${FILE_CLUSTERING_DATA_PATH}
       - FILE_METADATA_GENERATED_ARTICLE_PATH=${FILE_METADATA_GENERATED_ARTICLE_PATH}
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - BACKEND_INTERNAL_URL=http://backend:8000
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - AGC_TOKEN_NAME=${AGC_TOKEN_NAME}
@@ -57,7 +57,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000 # Untuk browser
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} # Untuk browser
       - BACKEND_INTERNAL_URL=http://backend:8000 # Untuk API route internal
       - JWT_SECRET_KEY=${JWT_SECRET_KEY} 
     depends_on:

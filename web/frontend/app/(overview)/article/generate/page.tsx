@@ -24,6 +24,7 @@ import ConfirmationModal from "@/components/ConfirmationModal";
 import { EditableTitleBox } from "@/components/editableTitleBox";
 import { EditableContentBox } from "@/components/EditableContentBox";
 import TerminalMonitor from "@/components/TerminalMonitorProps";
+import { API_V1 } from "@/utils/api";
 
 export default function GeneratePage() {
   const [formData, setFormData] = useState({
@@ -212,7 +213,7 @@ export default function GeneratePage() {
     sysLog("info", "Memulai proses Generate Artikel AI...", exec_time);
 
     try {
-      const generateAPI = "http://localhost:8000/api/v1/run/generate";
+      const generateAPI = `${API_V1}/run/generate`;
       const result: GenerateResult = await executeStream(generateAPI, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -240,7 +241,7 @@ export default function GeneratePage() {
 
       setIsFetchingTags(true);
       try {
-        const dataClusterAPI = "http://localhost:8000/api/v1/data/cluster";
+        const dataClusterAPI = `${API_V1}/data/cluster`;
         const response = await fetch(dataClusterAPI, {
           credentials: "include"
         });

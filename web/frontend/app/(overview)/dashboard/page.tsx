@@ -14,6 +14,7 @@ import { sysLog } from "@/utils/logger";
 import { DashboardStats, DashboardAnalytics } from "@/types/types";
 import { MetricRow, MetricBox } from "@/components/Box";
 import { MetricRowSkeleton, MetricBoxSkeleton, PieChartSkeleton, BarChartSkeleton } from "@/components/Skeleton";
+import { API_V1 } from "@/utils/api";
 
 const STATUS_COLORS: Record<string, string> = {
   "slug_only": "#64748b",      // Slate (Abu-abu) untuk data mentah
@@ -34,7 +35,7 @@ export default function DashboardHome() {
     sysLog("info", "Meminta data stats terbaru dari server...", exec_time);
 
     try {
-      const dataStatsAPI = "http://localhost:8000/api/v1/data/stats"
+      const dataStatsAPI = `${API_V1}/data/stats`;
       const response = await fetch(dataStatsAPI, {
         method: "GET",
         credentials: "include"
@@ -59,7 +60,7 @@ export default function DashboardHome() {
     sysLog("info", "Meminta data analytics terbaru dari server...", exec_time);
 
     try {
-      const dataAnalyticsAPI = `http://localhost:8000/api/v1/data/analytics?topic_sort=${currentSort}`;
+      const dataAnalyticsAPI = `${API_V1}/data/analytics?topic_sort=${currentSort}`;
       const response = await fetch(dataAnalyticsAPI, {
         method: "GET",
         credentials: "include"

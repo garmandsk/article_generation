@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { User, Lock, ArrowRight, AlertCircle } from "lucide-react";
+import { API_V1 } from "@/utils/api";
 
 export default function LoginPage() { 
   const router = useRouter();
@@ -21,8 +22,7 @@ export default function LoginPage() {
     setIsLoading(true);
     setErrorMessage("")
 
-    // const loginAPI = "http://127.0.0.1:8000/api/v1/auth/login";
-    const loginAPI = "http://localhost:8000/api/v1/auth/login";
+    const loginAPI = `${API_V1}/auth/login`;
     const payload = {
       username: username,
       password: password

@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid 
 } from "recharts";
 import { PieChartData, BarChartData } from "@/types/types";
+import { API_V1 } from "@/utils/api";
 
 // Palet warna elegan ala modern dashboard
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"]; 
@@ -13,7 +14,8 @@ export default function AnalyticsDashboard() {
 
   useEffect(() => {
     // Tarik data dari endpoint analitik backend
-    fetch("http://localhost:8000/api/v1/data/analytics")
+    const dataAnalyticsAPI = `${API_V1}/data/analytics`;
+    fetch(dataAnalyticsAPI)
       .then((res) => res.json())
       .then((resJson) => {
         if (resJson.status === "success") {

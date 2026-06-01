@@ -11,6 +11,7 @@ import { sysLog } from "@/utils/logger";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import { ClusterList, ClusterResult } from "@/types/types";
 import TerminalMonitor from "@/components/TerminalMonitorProps";
+import { API_V1 } from "@/utils/api";
 
 export default function ClusterPage() {
   // 1. State Lengkap sesuai Referensi (5 Group Input)
@@ -60,7 +61,7 @@ export default function ClusterPage() {
     sysLog("info", "Memulai proses Clustering AI...", exec_time);
 
     try {
-      const clusterAPI = "http://localhost:8000/api/v1/run/cluster";
+      const clusterAPI = `${API_V1}/run/cluster`;
       const result: ClusterResult = await executeStream(clusterAPI, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

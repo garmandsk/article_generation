@@ -18,6 +18,7 @@ import { EditableContentBox } from "@/components/EditableContentBox";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import { sysLog } from "@/utils/logger";
 import { ArticleData } from "@/types/types";
+import { API_V1 } from "@/utils/api";
 
 const STATUS_STYLES: Record<string, string> = {
   slug_only: "bg-slate-500/10 text-slate-400 border-slate-500/20",
@@ -76,7 +77,7 @@ export default function StoragePage() {
         limit: limit
       });
 
-      const dataArticlesAPI = `http://localhost:8000/api/v1/data/articles?${queryParams.toString()}`;
+      const dataArticlesAPI = `${API_V1}/data/articles?${queryParams.toString()}`;
       const response = await fetch(dataArticlesAPI, {
         method: "GET",
         credentials: "include"
@@ -110,7 +111,7 @@ export default function StoragePage() {
     setIsExporting(true);
     sysLog("info", "Memulai proses export database...", "0");
 
-    const exportAPI = "http://localhost:8000/api/v1/data/export";
+    const exportAPI = `${API_V1}/data/export`;
     setTimeout(() => {
       window.open(exportAPI, "_blank");
       setIsExporting(false);
@@ -142,7 +143,7 @@ export default function StoragePage() {
     formData.append("file", selectedFile);
 
     try {
-      const importAPI = "http://localhost:8000/api/v1/data/import";
+      const importAPI = `${API_V1}/data/import`;
       const response = await fetch(importAPI, {
         method: "POST",
         body: formData,

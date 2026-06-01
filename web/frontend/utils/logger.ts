@@ -1,4 +1,5 @@
 import { useLogStore } from "@/store/logStore"
+import { LOGS_URL } from "./api";
 
 function maskSensitiveData(text: string): string {
   let safeText = text;
@@ -37,7 +38,7 @@ export const sysLog = (type: LogType, rawMessage: string, exec_time: string | nu
 
   // Logger Backend (Statefull -> Kirim ke LaaS)
   // try {
-  //   const logsAPI = "http://localhost:8000/logs";
+    // const logsAPI = LOGS_URL;
   //   fetch(logsAPI, {
   //     method: 'POST',
   //     headers: { 'Content-Type': 'application/json' },
