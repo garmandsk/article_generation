@@ -115,7 +115,8 @@ export interface ClusterResult {
         total_recommended: number,
         clustered_total_article: number,
         outlier_total_article: number,
-        min_cf_range: number
+        min_cf_range: number,
+        time_filter_days: number
     },
     cluster: ClusterList[]
   },

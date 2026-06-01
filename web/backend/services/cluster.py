@@ -1,5 +1,6 @@
 import asyncio
 import time
+from datetime import datetime, timedelta, timezone
 
 import nltk
 import pandas as pd
@@ -83,14 +84,58 @@ def extract_info_cluster(raw_text):
     cluster_name = keywords[0].title()
     return cluster_id, cluster_name, keywords
 
+
 async def cluster_articles_stream(payload, token):
     start_time = time.perf_counter()
 
     try:
-        yield log_msg("📦 Menarik Vektor dari Database Lokal (ChromaDB)...", 5)
+        days_ago = payload.days_ago
+        yield log_msg(
+            f"🔍 Memulai filter temporal: "
+            f"{'Semua Waktu' if days_ago == 0 else f'{days_ago} Hari Terakhir'}...",
+            2,
+        )
+
+        # ================================================================
+        # TAHAP 1: FILTER WAKTU VIA POSTGRESQL DULU
+        # ================================================================
+        pg_db = SessionLocal()
+        valid_ids_list = []
+        try:
+            # Ambil hanya artikel yang sudah memiliki teks/vektor
+            query = pg_db.query(Article.id).filter(
+                Article.status.in_(["vectorized", "clustered", "outlier_cluster"])
+            )
+
+            # Terapkan filter temporal jika days_ago > 0
+            if days_ago > 0:
+                target_date = datetime.now(timezone.utc) - timedelta(days=days_ago)
+                query = query.filter(Article.published_at >= target_date)
+
+            valid_articles = query.all()
+            valid_ids_list = [str(art.id) for art in valid_articles]
+        finally:
+            pg_db.close()  # Tutup sesi sejenak untuk hemat memori
+
+        # Pengaman jika tidak ada artikel di rentang waktu tersebut
+        if not valid_ids_list:
+            yield log_msg(
+                f"❌ Tidak ada artikel yang "
+                f"diterbitkan dalam {days_ago} hari terakhir.",
+                status="error",
+            )
+            return
+
+        # ================================================================
+        # TAHAP 2: TARIK VEKTOR SELEKTIF DARI CHROMADB
+        # ================================================================
+        yield log_msg(f"📦 Menarik {len(valid_ids_list)} Vektor dari ChromaDB...", 5)
 
         collection = get_from_chromadb(settings.DB_CHROMA_PATH, settings.DB_NAME)
-        chroma_db = collection.get(include=["embeddings", "documents"])
+
+        chroma_db = collection.get(
+            ids=valid_ids_list, include=["embeddings", "documents"]
+        )
 
         chroma_ids = chroma_db["ids"]
         docs = chroma_db["documents"]
@@ -98,17 +143,16 @@ async def cluster_articles_stream(payload, token):
 
         total_docs = len(docs)
         if total_docs < 10:
-            yield log_msg(f"❌ Data terlalu sedikit ({total_docs} artikel). "
-            "Minimal butuh "
-            f"10 artikel untuk membentuk klaster yang valid.", status="error")
-            return
-        if not chroma_ids:
             yield log_msg(
-                "❌ ChromaDB kosong! Pastikan scraper dan vektorisasi sukses.",
+                f"❌ Data terlalu sedikit ({total_docs} artikel). "
+                "Minimal butuh 10 artikel untuk membentuk klaster yang valid.",
                 status="error",
             )
             return
 
+        # ================================================================
+        # TAHAP 3: SETUP BERTOPIC & MLOPS PIPELINE
+        # ================================================================
         yield log_msg("⚙️ Mengunduh dan menyiapkan kamus Stopwords...", 10)
         nltk.download("stopwords", quiet=True)
         stopwords_list = stopwords.words("indonesian")
@@ -138,12 +182,10 @@ async def cluster_articles_stream(payload, token):
 
         # Pengamanan jumlah n_neighbors
         requested_n_neighbors = payload.umap_config.n_neighbors
-        # UMAP butuh minimal 2, dan maksimal (Total Populasi - 1)
         safe_n_neighbors = max(2, min(requested_n_neighbors, total_docs - 1))
 
         # Pengamanan jumlah min_cluster_size
         requested_min_cluster_size = payload.hdbscan_config.min_cluster_size
-        # HDBSCAN juga akan crash jika min_cluster_size lebih besar dari populasi
         safe_min_cluster_size = max(2, min(requested_min_cluster_size, total_docs // 2))
 
         topic_model = BERTopic(
@@ -175,8 +217,6 @@ async def cluster_articles_stream(payload, token):
                 reduce_frequent_words=payload.ctfidf_config.reduce_frequent_words,
             ),
             representation_model=representation_models_prep(),
-            # Matikan verbose bawaan BERTopic
-            # agar log terminal kita lebih bersih
             verbose=False,
         )
 
@@ -193,10 +233,12 @@ async def cluster_articles_stream(payload, token):
 
         yield log_msg("✅ Model BERTopic selesai dilatih! Memetakan hasil...", 60)
 
-        # == Menggabungkan Hasil cluster dengan pgsql ==
+        # ================================================================
+        # TAHAP 4: SINKRONISASI HASIL CLUSTER KEMBALI KE POSTGRESQL
+        # ================================================================
         yield log_msg("🔄 Menarik metadata dari PostgreSQL untuk disinkronisasi...", 65)
 
-        pg_db = SessionLocal()
+        pg_db = SessionLocal()  # Buka sesi baru untuk update
         try:
             pg_db_articles = (
                 pg_db.query(Article).filter(Article.id.in_(chroma_ids)).all()
@@ -219,10 +261,10 @@ async def cluster_articles_stream(payload, token):
             )
             df_raw["name_topic"] = df_raw["id_topic"].map(mapping_topic_name)
 
-            # Filtering
+            # Filtering Outlier & Confidence
             yield log_msg(
                 f"🧹 Membersihkan outlier dan memfilter "
-                f"confidence > {min_cf_range * 100}%...",
+                F"confidence > {min_cf_range * 100}%...",
                 70,
             )
             df_clean = df_raw[
@@ -246,13 +288,12 @@ async def cluster_articles_stream(payload, token):
                 cid, _, _ = extract_info_cluster(text)
                 recommend_cluster_ids.append(cid)
 
-            # Reset status article ke vectorized
-            yield log_msg(
-                "💾 Me-reset status article ke vectorized...", 80
-            )
-
+            # Reset SEMUA status artikel lama agar dashboard UI bersih
+            # (hanya menampilkan klaster dari rentang waktu yang baru dipilih)
+            yield log_msg("💾 Membersihkan sisa label cluster lama di database...", 80)
             pg_db.query(Article).filter(
-                Article.status.in_(["clustered", "outlier_cluster"])).update(
+                Article.status.in_(["clustered", "outlier_cluster"])
+            ).update(
                 {
                     "cluster_topic": None,
                     "cluster_keywords": None,
@@ -262,27 +303,24 @@ async def cluster_articles_stream(payload, token):
                 synchronize_session=False,
             )
 
-            yield log_msg("💾 Menyimpan label cluster sementara (outlier) "
-            "ke PostgreSQL...", 82)
-
-            pg_db.query(Article).filter(
-                Article.id.in_(chroma_ids)
-            ).update(
+            # Update status outlier untuk data yang di-cluster saat ini
+            yield log_msg(
+                "💾 Menyimpan label cluster sementara (outlier) ke PostgreSQL...", 82
+            )
+            pg_db.query(Article).filter(Article.id.in_(chroma_ids)).update(
                 {
                     "cluster_topic": None,
                     "cluster_keywords": None,
                     "is_recommended": False,
                     "status": "outlier_cluster",
                 },
-                synchronize_session=False
+                synchronize_session=False,
             )
 
             yield log_msg(
                 "💾 Menulis ulang label cluster yang valid ke dalam database...", 85
             )
 
-            # Batch update untuk performa lebih baik bisa diterapkan,
-            # namun iterrows cukup cepat untuk jumlah moderat
             total_clean = len(df_clean)
             for index, row in df_clean.iterrows():
                 article_id = str(row["id"])
@@ -301,8 +339,6 @@ async def cluster_articles_stream(payload, token):
                     synchronize_session=False,
                 )
 
-                # Sesekali update UI progress bar di
-                # tengah loop untuk memberikan ilusi kelancaran
                 if index > 0 and index % max(1, (total_clean // 5)) == 0:
                     yield log_msg(
                         f"✍️ Mengunci data ke-{index} dari {total_clean}...",
@@ -312,6 +348,7 @@ async def cluster_articles_stream(payload, token):
             pg_db.commit()
             yield log_msg("✅ Database PostgreSQL berhasil diperbarui sepenuhnya.", 95)
 
+            # Siapkan Output Final
             final_cluster_list = []
             for index, row in df_article_topic_ascending.iterrows():
                 text = str(row["name_topic"])
@@ -336,12 +373,12 @@ async def cluster_articles_stream(payload, token):
             end_time = time.perf_counter()
             exec_time_sec = str(round(end_time - start_time)) + "s"
 
-            # 📦 Siapkan paket JSON final untuk diterima oleh Frontend React
             final_result = {
                 "status_code": 200,
                 "status": "success",
-                "message": f"Clustering selesai. "
-                f"{len(final_cluster_list)} cluster terbentuk.",
+                "message": f"Clustering selesai. {len(final_cluster_list)} "
+                "cluster terbentuk dari data "
+                f"{'semua waktu' if days_ago == 0 else f'{days_ago} hari terakhir'}.",
                 "data": {
                     "metadatas": {
                         "total_cluster": len(final_cluster_list),
@@ -349,13 +386,13 @@ async def cluster_articles_stream(payload, token):
                         "clustered_total_article": len(df_clean),
                         "outlier_total_article": len(df_raw) - len(df_clean),
                         "min_cf_range": min_cf_range,
+                        "time_filter_days": days_ago,
                     },
                     "cluster": final_cluster_list,
                 },
                 "exec_time": exec_time_sec,
             }
 
-            # semburan Terakhir (Sinyal Selesai)
             yield {
                 "status": "done",
                 "text": final_result["message"],
