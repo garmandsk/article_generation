@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from config import settings
 from config.database import SessionLocal
 from models.models import Article
-from utils import log_msg, save_to_chromadb
+from utils import log_msg, parse_time, save_to_chromadb
 
 
 async def scrap_newer_list_articles(
@@ -86,6 +86,7 @@ async def scrap_newer_list_articles(
                             id=article["id"],
                             id_inc=id_inc_current,
                             slug=article["slug"],
+                            published_at=parse_time(article["published_at_time"]),
                             status="slug_only",
                         )
                         newer_articles_batch.append(new_item)
@@ -203,6 +204,7 @@ async def scrap_older_list_articles(headers, max_scrap, limit_article_per_page):
                                 id=article["id"],
                                 id_inc=id_inc_current,
                                 slug=article["slug"],
+                                published_at=parse_time(article["published_at_time"]),
                                 status="slug_only",
                             )
                             older_articles_batch.append(new_item)

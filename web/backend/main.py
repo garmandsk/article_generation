@@ -13,7 +13,7 @@ if "REQUESTS_CA_BUNDLE" in os.environ:
 import json
 import time
 from collections.abc import AsyncIterable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import requests
@@ -62,7 +62,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:8080",
         "http://127.0.0.1:8080",
-        "http://frontend:8080"
+        "http://frontend:8080",
     ],
     allow_credentials=True,  # WAJIB TRUE AGAR COOKIE BISA LEWAT
     allow_methods=["*"],
@@ -134,11 +134,7 @@ def create_access_token(data: dict):
 
 @app.get("/health")
 def health_check():
-    return {
-        "status_code": 200,
-        "status": "ok",
-        "message": "Health Ok"
-    }
+    return {"status_code": 200, "status": "ok", "message": "Health Ok"}
 
 
 # Login dan pembuatan cookie token
@@ -231,13 +227,19 @@ async def get_data_articles(
         #    'status' di DB)
         if type != "all":
             query = query.filter(Article.status == type)
+        else:
+            query = query.filter(Article.status != "generated")
 
         # 4. Sorting Asumsikan ada kolom 'created_at'. Jika tidak, gunakan 'id'
         # sebagai representasi waktu masuk.
         if sort == "newest":
-            query = query.order_by(desc(Article.created_at), desc(Article.id))
+            query = query.order_by(
+                Article.published_at.desc().nulls_last(), Article.id.desc()
+            )
         elif sort == "oldest":
-            query = query.order_by(asc(Article.created_at), asc(Article.id))
+            query = query.order_by(
+                Article.published_at.asc().nulls_last(), Article.id.asc()
+            )
         elif sort == "az":
             query = query.order_by(asc(Article.title))
         elif sort == "za":
@@ -253,17 +255,18 @@ async def get_data_articles(
         # Format Data
         formatted_articles = []
         for art in articles_db:
+            if hasattr(art, "published_at") and art.published_at:
+                display_date = art.published_at.strftime("%Y-%m-%d")
+            else:
+                display_date = "Belum Diketahui"
+
             formatted_articles.append(
                 {
                     "id": str(art.id),
                     "title": art.title,
                     "content": art.content,
                     "status": art.status,
-                    # Gunakan tanggal hari ini sebagai fallback jika kolom
-                    # created_at tidak ada
-                    "date": art.created_at.strftime("%Y-%m-%d")
-                    if hasattr(art, "created_at") and art.created_at
-                    else "2026-05-28",
+                    "date": display_date,
                 }
             )
 
@@ -504,6 +507,27 @@ async def get_data_cluster(
         "exec_time": exec_time_sec,
         "data": {"topics": formatted_topics},
     }
+
+
+# Data Clusterable Article
+@app.get("/api/v1/data/count-clusterable")
+def get_clusterable_count(
+    days_ago: int = 0,
+    db: Session = Depends(get_db),
+    token: str = Depends(get_mydigilearn_token),
+):
+    query = db.query(Article.id).filter(
+        Article.status.in_(["vectorized", "clustered", "outlier_cluster"])
+    )
+
+    if days_ago > 0:
+        target_date = datetime.now(timezone.utc) - timedelta(days=days_ago)
+        query = query.filter(Article.published_at >= target_date)
+
+    # Hanya menghitung jumlah baris, sangat cepat!
+    total_count = query.count()
+
+    return {"status": "success", "count": total_count}
 
 
 @app.get("/api/v1/data/export")

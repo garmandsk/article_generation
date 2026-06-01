@@ -49,6 +49,7 @@ class ScrapPayload(BaseModel):
 
 
 class ClusterPayload(BaseModel):
+    days_ago: int = Field(0)
     recommend_target: int = Field(3)
     min_cf_range: float = Field(0.5)
     embedding_model_config: EmbeddingModelConfig = EmbeddingModelConfig()
