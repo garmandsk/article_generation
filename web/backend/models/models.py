@@ -18,7 +18,7 @@ class Article(Base):
     title = Column(String, nullable=True)
     content = Column(Text, nullable=True)
     tags = Column(ARRAY(String), nullable=True, server_default="{}")
-    published_at = Column(DateTime(timezone=True), nullable=False)
+    published_at = Column(DateTime(timezone=True), nullable=True)
 
     # Status pipeline: 'scraped', 'clustered', atau 'generated'
     status = Column(String, default="slug_only", nullable=False)
