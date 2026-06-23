@@ -14,7 +14,7 @@ import {
   Clock,
   AlertCircle,
   Hash,
-  Star,
+  Star
 } from "lucide-react";
 import { sysLog } from "@/utils/logger";
 import ConfirmationModal from "@/components/ConfirmationModal";
@@ -26,7 +26,7 @@ export default function ClusterPage() {
   // 1. State Lengkap dengan tambahan days_ago
   const [formData, setFormData] = useState({
     // General
-    days_ago: 7, 
+    days_ago: 7,
     embedding_model: "all-MiniLM-L6-v2",
     recommend_target: 3,
     min_conf_score: 0.5,
@@ -67,8 +67,8 @@ export default function ClusterPage() {
     { label: "Last 7 Days (7 Hari Terakhir)", value: 7 },
     { label: "Last 30 Days (1 Bulan Terakhir)", value: 30 },
     { label: "Last 3 Months (3 Bulan Terakhir)", value: 90 },
-    { label: "Last 1 Year (1 Tahun Terakhir)", value: 365 },
-];
+    { label: "Last 1 Year (1 Tahun Terakhir)", value: 365 }
+  ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -89,12 +89,15 @@ export default function ClusterPage() {
     sysLog("info", "Memulai proses Clustering AI...", exec_time);
 
     try {
+      const token = localStorage.getItem("mydigilearn_token");
       const clusterAPI = `${API_V1}/run/cluster`;
       const result: ClusterResult = await executeStream(clusterAPI, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(formData),
-        credentials: "include"
       });
 
       if (result.status_code != 200) throw new Error(result.message || result.detail);
@@ -112,10 +115,14 @@ export default function ClusterPage() {
     const fetchArticleCount = async () => {
       setIsCounting(true);
       try {
+        const token = localStorage.getItem("mydigilearn_token");
         const countClusterableAPI = `${API_V1}/data/count-clusterable`;
         const response = await fetch(`${countClusterableAPI}?days_ago=${debouncedDaysAgo}`, {
           method: "GET",
-          credentials: "include"
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          }
         });
 
         const result = await response.json();
@@ -133,14 +140,14 @@ export default function ClusterPage() {
   }, [debouncedDaysAgo]);
 
   // Debouncing
-    useEffect(() => {
-      const timer = setTimeout(() => {
-        setDebouncedDaysAgo(formData.days_ago);
-      }, 500); // Tunggu 500 ms setelah ketikan terakhir
-  
-      // Cleanup function: jika ada pengetikkan lagi sebelum 500ms, batalkan timer sebelumnya
-      return () => clearTimeout(timer);
-    }, [formData.days_ago]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedDaysAgo(formData.days_ago);
+    }, 500); // Tunggu 500 ms setelah ketikan terakhir
+
+    // Cleanup function: jika ada pengetikkan lagi sebelum 500ms, batalkan timer sebelumnya
+    return () => clearTimeout(timer);
+  }, [formData.days_ago]);
 
   return (
     <div className="w-full h-full flex flex-col gap-6 animate-in fade-in duration-500 relative pb-10">
@@ -175,10 +182,8 @@ export default function ClusterPage() {
             <div className="space-y-4">
               <div className="space-y-1 mt-2 relative">
                 <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    Time Filter (Hari)
-                  </div>
-                  
+                  <div className="flex items-center gap-1">Time Filter (Hari)</div>
+
                   {/* Indikator Live Counter dari Diskusi Sebelumnya */}
                   <div className="flex items-center">
                     {isCounting ? (
@@ -187,11 +192,13 @@ export default function ClusterPage() {
                         Menghitung...
                       </span>
                     ) : estimatedArticleCount !== null ? (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
-                        Number(estimatedArticleCount) < 10 
-                          ? "bg-red-500/10 text-red-400 border-red-500/20" 
-                          : "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                      }`}>
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                          Number(estimatedArticleCount) < 10
+                            ? "bg-red-500/10 text-red-400 border-red-500/20"
+                            : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                        }`}
+                      >
                         {estimatedArticleCount} Articles
                       </span>
                     ) : null}
@@ -203,7 +210,11 @@ export default function ClusterPage() {
                   <input
                     type="text"
                     name="days_ago"
-                    value={formData.days_ago === 0 && !isDaysDropdownOpen ? "0 (All Time)" : formData.days_ago}
+                    value={
+                      formData.days_ago === 0 && !isDaysDropdownOpen
+                        ? "0 (All Time)"
+                        : formData.days_ago
+                    }
                     onChange={handleInputChange}
                     onFocus={() => setIsDaysDropdownOpen(true)}
                     onBlur={() => setTimeout(() => setIsDaysDropdownOpen(false), 200)} // Delay agar onClick item sempat tereksekusi
@@ -242,12 +253,13 @@ export default function ClusterPage() {
 
                       {/* Indikator Jika Mengetik Rentang Hari Kustom */}
                       {!PREDEFINED_DAYS.find((d) => d.value === Number(formData.days_ago)) &&
-                        String(formData.days_ago) !== "" && !isNaN(Number(formData.days_ago)) && (
+                        String(formData.days_ago) !== "" &&
+                        !isNaN(Number(formData.days_ago)) && (
                           <div className="px-4 py-2.5 text-sm text-emerald-400 bg-emerald-500/10 border-t border-emerald-500/20 italic">
                             {`Menggunakan rentang kustom: ${formData.days_ago} Hari Terakhir`}
                           </div>
                         )}
-                        
+
                       {/* Validasi Proteksi jika user mengetik huruf / karakter bukan angka */}
                       {isNaN(Number(formData.days_ago)) && String(formData.days_ago) !== "" && (
                         <div className="px-4 py-2.5 text-sm text-red-400 bg-red-500/10 border-t border-red-500/20 italic flex items-center gap-1">
@@ -497,8 +509,8 @@ export default function ClusterPage() {
                   <div className="w-5 h-5 border-2 border-[#02040F]/30 border-t-[#02040F] rounded-full animate-spin" />
                   <span>Clustering Data...</span>
                 </>
-              ) : estimatedArticleCount !== null && estimatedArticleCount < 10 ?(
-                  <span>Data Artikel Tidak Cukup (Min. 10)</span>
+              ) : estimatedArticleCount !== null && estimatedArticleCount < 10 ? (
+                <span>Data Artikel Tidak Cukup (Min. 10)</span>
               ) : (
                 <>
                   <Play size={18} className="fill-current" />

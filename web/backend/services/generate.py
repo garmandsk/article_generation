@@ -23,47 +23,23 @@ async def generate_article_stream(payload):
     yield log_msg("🚀 Memulai proses Generate Artikel...", 5)
 
     topics = payload.topics
-    keywords = payload.keywords
-    prompt_user = payload.prompt
+    prompt_system = payload.prompt_system
+    prompt_user = payload.prompt_user
     model = payload.model
     model_api_key = payload.model_api_key
 
+    prompt = prompt_system
+    if prompt_user:
+        prompt += f"\n\nINSTRUKSI KHUSUS DARI PENGGUNA:\n{prompt_user}"
+
+    yield log_msg("💬 Prompt anda...", 10)
+    yield log_msg(prompt)
     yield log_msg("🔑 Memvalidasi kredensial Gemini SDK...", 10)
     if not model_api_key:
         yield log_msg("❌ API Key tidak ditemukan!", status="error")
         return
 
     client = genai.Client(api_key=model_api_key)
-    topics_str = " dan ".join(topics)
-    keywords_str = ", ".join(keywords)
-
-    # 1. Rakit Prompt
-    prompt_system = f"""
-    Bertindaklah sebagai Jurnalis atau pembuat artikel yang ahli.
-    Tuliskan 1 artikel edukasi berdasarkan informasi berikut:
-    - Topik Utama: {topics_str}
-    - Kata Kunci yang WAJIB dibahas: {keywords_str}
-    """
-
-    if prompt_user:
-        prompt_system += f"\n\nINSTRUKSI KHUSUS DARI PENGGUNA:\n{prompt_user}"
-
-    prompt_system += """\n\n
-    ATURAN MUTLAK FORMAT OUTPUT:
-    - Kamu WAJIB mengembalikan jawaban HANYA dalam format JSON yang valid.
-    - Struktur JSON harus memiliki persis 2 key: "title" dan "content".
-    - Key "title" berisi teks judul artikel murni.
-    - Key "content" berisi isi artikel dalam format Markdown
-    Dasar yang disederhanakan (Minimal 2000 kata).
-
-    ATURAN MARKDOWN UNTUK "content":
-    - GUNAKAN **teks** untuk poin penting.
-    - GUNAKAN # atau ## untuk subjudul.
-    - GUNAKAN - untuk list bullet.
-    - DIIZINKAN blockquote (>) MAKSIMAL 2 kali (untuk kutipan).
-    - DILARANG menggunakan nested blockquote (>>).
-    - DILARANG menggunakan nested list.
-    """
 
     max_try = 5
     try_count = 1
@@ -79,7 +55,7 @@ async def generate_article_stream(payload):
             # Gunakan 'client.aio' agar proses nunggu tidak memblokir server!
             response = await client.aio.models.generate_content(
                 model=model,
-                contents=prompt_system,
+                contents=prompt,
                 config={"response_mime_type": "application/json"},
             )
 

@@ -37,7 +37,6 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -50,6 +49,16 @@ export default function LoginPage() {
         setErrorMessage(pesanDariServer || "Login gagal. Periksa kembali username & password Anda.")
       } 
       console.log("login berhasil")
+
+      if (data.agc_token) {
+        localStorage.setItem("agc_token", data.agc_token)
+        document.cookie = `agc_token=${data.agc_token}; path=/; max-age=7200; Secure; SameSite=Lax`;
+      }
+
+      if (data.mydigilearn_token) {
+        localStorage.setItem("mydigilearn_token", data.mydigilearn_token)
+        document.cookie = `mydigilearn_token=${data.mydigilearn_token}; path=/; max-age=7200; Secure; SameSite=Lax`;
+      }
 
       router.push("/dashboard")
     } catch (error) {

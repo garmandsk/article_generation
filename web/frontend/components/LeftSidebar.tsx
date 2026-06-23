@@ -76,6 +76,12 @@ export default function LeftSidebar() {
         },
         credentials: "include"
       });
+
+      localStorage.removeItem("agc_token");
+      localStorage.removeItem("mydigilearn_token");
+      
+      document.cookie = "agc_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "mydigilearn_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     } catch (error) {
       console.error("Gagal menghubungi server untuk logout: ", error);
     } finally {
@@ -254,7 +260,7 @@ export default function LeftSidebar() {
             </div>
 
             {/* Konten Berhalaman (Animasi Transisi Konten) */}
-            <div className="p-8 text-center min-h-[280px] flex flex-col items-center justify-center relative z-10">
+            <div className="p-8 text-center min-h-70 flex flex-col items-center justify-center relative z-10">
               <div key={infoPage} className="animate-in slide-in-from-right-8 fade-in duration-500">
                 <div className="text-5xl mb-6">{infoContent[infoPage].icon}</div>
                 <h2 className="text-2xl font-bold text-white mb-4">

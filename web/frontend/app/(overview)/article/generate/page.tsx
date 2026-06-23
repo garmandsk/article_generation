@@ -16,7 +16,9 @@ import {
   ChevronDown,
   Lock,
   EyeOff,
-  Eye
+  Eye,
+  AlertTriangle,
+  RotateCcw
 } from "lucide-react";
 import { GenerateResult, TopicData, TopicSortOption } from "@/types/types";
 import { sysLog } from "@/utils/logger";
@@ -27,14 +29,38 @@ import TerminalMonitor from "@/components/TerminalMonitorProps";
 import { API_V1 } from "@/utils/api";
 
 export default function GeneratePage() {
+  const generateDefaultSystemPrompt = (topics: string[], keywords: string[]) => {
+    const topicsStr = topics.length > 0 ? topics.join(", ") : "Tidak ada";
+    const keywordsStr = keywords.length > 0 ? keywords.join(", ") : "Tidak ada";
+
+    return `Bertindaklah sebagai Jurnalis atau pembuat artikel yang ahli.
+      Tuliskan 1 artikel edukasi berdasarkan informasi berikut:
+      - Topik Utama: ${topicsStr}
+      - Kata Kunci yang WAJIB dibahas: ${keywordsStr}
+  
+      ATURAN MUTLAK FORMAT OUTPUT:
+      - Kamu WAJIB mengembalikan jawaban HANYA dalam format JSON yang valid.
+      - Struktur JSON harus memiliki persis 2 key: "title" dan "content".
+      - Key "title" berisi teks judul artikel murni.
+      - Key "content" berisi isi artikel dalam format Markdown Dasar yang disederhanakan (Minimal 2000 kata).
+  
+      ATURAN MARKDOWN UNTUK "content":
+      - GUNAKAN **teks** untuk poin penting.
+      - GUNAKAN # atau ## untuk subjudul.
+      - GUNAKAN - untuk list bullet.
+      - DIIZINKAN blockquote (>) MAKSIMAL 2 kali (untuk kutipan).
+      - DILARANG menggunakan nested blockquote (>>).
+      - DILARANG menggunakan nested list.`;
+  };
+
   const [formData, setFormData] = useState({
     topics: [] as string[],
     keywords: [] as string[],
-    prompt: "",
+    prompt_user: "",
+    prompt_system: generateDefaultSystemPrompt([], []),
     model: "gemini-3-flash-preview",
     model_api_key: ""
   });
-
   const [topicLimit, setTopicLimit] = useState<number | "all">(10);
   const [topicSort, setTopicSort] = useState<TopicSortOption>("rec");
   const [topicPool, setTopicPool] = useState<TopicData[]>([]);
@@ -119,11 +145,13 @@ export default function GeneratePage() {
   const toggleTopic = (name: string) => {
     setFormData((prev) => {
       const isCurrentlySelected = prev.topics.includes(name);
+      let newTopics = [];
+      let newKeywords = [];
 
       if (isCurrentlySelected) {
         // Jika topik dihapus
 
-        const newTopics = prev.topics.filter((t) => t !== name);
+        newTopics = prev.topics.filter((t) => t !== name);
 
         // Cari daftar keyword dari topik yang baru saja dihapus
         const topicToRemoveData = topicPool.find((t) => t.name === name);
@@ -139,15 +167,9 @@ export default function GeneratePage() {
         // Filter keyword yang ada di kotak saat ini:
         // - Pertahankan jika BUKAN milik topik yang dihapus.
         // - ATAU pertahankan jika dia milik topik yang dihapus, TAPI kebetulan masih dipakai topik lain.
-        const newKeywords = prev.keywords.filter(
+        newKeywords = prev.keywords.filter(
           (kw) => !keywordsToRemove.includes(kw) || remainingKeywordsSet.has(kw)
         );
-
-        return {
-          ...prev,
-          topics: newTopics,
-          keywords: newKeywords
-        };
       } else {
         // Jika topik ditambah
 
@@ -156,22 +178,31 @@ export default function GeneratePage() {
 
         const mergedKeywords = new Set([...prev.keywords, ...autoKeywords]);
 
-        return {
-          ...prev,
-          topics: [...prev.topics, name],
-          keywords: Array.from(mergedKeywords)
-        };
+        newTopics = [...prev.topics, name];
+        newKeywords = Array.from(mergedKeywords);
       }
+
+      return {
+        ...prev,
+        topics: newTopics,
+        keywords: newKeywords,
+        prompt_system: generateDefaultSystemPrompt(newTopics, newKeywords)
+      };
     });
   };
 
   const toggleKeyword = (name: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      keywords: prev.keywords.includes(name)
+    setFormData((prev) => {
+      const newKeywords = prev.keywords.includes(name)
         ? prev.keywords.filter((k) => k !== name)
-        : [...prev.keywords, name]
-    }));
+        : [...prev.keywords, name];
+
+      return {
+        ...prev,
+        keywords: newKeywords,
+        prompt_system: generateDefaultSystemPrompt(prev.topics, newKeywords)
+      };
+    });
   };
 
   // Handler Input Manual
@@ -189,6 +220,13 @@ export default function GeneratePage() {
       }
       setValue("");
     }
+  };
+
+  const handleResetPrompt = () => {
+    setFormData((prev) => ({
+      ...prev,
+      prompt_system: generateDefaultSystemPrompt(prev.topics, prev.keywords)
+    }));
   };
 
   // Helper Warna
@@ -213,12 +251,15 @@ export default function GeneratePage() {
     sysLog("info", "Memulai proses Generate Artikel AI...", exec_time);
 
     try {
+      const token = localStorage.getItem("mydigilearn_token");
       const generateAPI = `${API_V1}/run/generate`;
       const result: GenerateResult = await executeStream(generateAPI, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-        credentials: "include"
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
       });
 
       if (result.status_code != 200) throw new Error(result.message || result.detail);
@@ -241,9 +282,14 @@ export default function GeneratePage() {
 
       setIsFetchingTags(true);
       try {
+        const token = localStorage.getItem("mydigilearn_token");
         const dataClusterAPI = `${API_V1}/data/cluster`;
         const response = await fetch(dataClusterAPI, {
-          credentials: "include"
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          }
         });
         const result = await response.json();
 
@@ -600,8 +646,8 @@ export default function GeneratePage() {
                   Custom Prompt (Optional)
                 </label>
                 <textarea
-                  name="prompt"
-                  value={formData.prompt}
+                  name="prompt_user"
+                  value={formData.prompt_user}
                   onChange={handleInputChange}
                   placeholder="Tambahkan instruksi khusus untuk AI..."
                   className="w-full h-24 bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg p-3 focus:border-[#E59500] outline-none transition-colors"
@@ -781,16 +827,91 @@ export default function GeneratePage() {
           </div>
 
           {/* Baris 4: Prompt (Jika Ada) */}
-          {formData.prompt.trim() !== "" && (
+          {formData.prompt_user.trim() !== "" && (
             <div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">
                 Custom Prompt
               </span>
               <div className="bg-[#0A0E1A] border border-slate-800 p-2.5 rounded-lg text-xs text-slate-400 italic line-clamp-3">
-                {`"${formData.prompt}"`}
+                {`"${formData.prompt_user}"`}
               </div>
             </div>
           )}
+
+          {/* BARIS 5: SYSTEM PROMPT & WARNING */}
+          <div className="pt-2 border-t border-slate-800/50 mt-4">
+            <div className="mb-4 p-3.5 bg-[#840032]/10 border border-[#840032]/30 rounded-lg flex items-start gap-3">
+              <AlertTriangle size={20} className="text-red-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-red-200/90 leading-relaxed">
+                <strong className="text-red-400 font-bold tracking-wider block mb-1">
+                  ⚠️ PERINGATAN KERAS
+                </strong>
+                Prompt utama di bawah ini mengatur kerangka sistem. Mengubah atau menghapus aturan
+                format JSON (<span className="font-mono text-red-300">`title`</span> &{" "}
+                <span className="font-mono text-red-300">`content`</span>) dapat merusak hasil
+                generate dan menyebabkan error pada sistem. Ubah hanya jika Anda benar-benar ahli.
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  System Prompt Utama
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResetPrompt}
+                    className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400 hover:text-white bg-[#02040F] hover:bg-slate-800 px-2 py-1 rounded border border-slate-700 hover:border-slate-500 transition-all focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    title="Kembalikan ke aturan format awal"
+                  >
+                    <RotateCcw size={12} />
+                    Reset Default
+                  </button>
+                  <span className="text-[10px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded border border-red-500/20 pointer-events-none">
+                    Danger Zone
+                  </span>
+                </div>
+              </div>
+              <textarea
+                name="prompt_system"
+                value={formData.prompt_system}
+                onChange={handleInputChange}
+                rows={10}
+                spellCheck="false"
+                className="w-full bg-[#0A0E1A] border border-slate-700 text-[#E5DADA] text-[11px] p-3 rounded-lg focus:ring-1 focus:ring-red-500/50 focus:border-red-500/50 outline-none transition-all font-mono leading-relaxed resize-y scrollbar-thin scrollbar-thumb-slate-700 whitespace-pre-wrap"
+              />
+            </div>
+          </div>
+
+          {/* ========================================================= */}
+          {/* BARIS 6: PREVIEW PROMPT UTUH (GABUNGAN) */}
+          {/* ========================================================= */}
+          <div className="pt-4 border-t border-slate-800/50 mt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                Final Prompt Preview
+              </span>
+              <span className="text-[9px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 pointer-events-none">
+                Read Only
+              </span>
+            </div>
+            
+            {/* Kotak Preview (Scrollable) */}
+            <div className="bg-[#02040F]/80 border border-blue-900/30 p-4 rounded-lg text-[11px] text-blue-200/80 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 leading-relaxed shadow-inner">
+              {/* Tampilkan System Prompt Utama */}
+              {formData.prompt_system}
+              
+              {/* Jika User Prompt tidak kosong, gabungkan dengan penanda khusus */}
+              {formData.prompt_user.trim() !== "" && (
+                <span className="text-emerald-300/90">
+                  {"\n\nINSTRUKSI KHUSUS DARI PENGGUNA:\n"}
+                  {formData.prompt_user}
+                </span>
+              )}
+            </div>
+          </div>
+
         </div>
       </ConfirmationModal>
     </div>

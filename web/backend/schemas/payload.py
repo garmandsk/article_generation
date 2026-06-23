@@ -67,7 +67,30 @@ class GeneratePayload(BaseModel):
         ["Ekonomi", "Kondisi Ekonomi", "Biaya Hidup"],
         description="Daftar kata kunci untuk memandu artikel",
     )
-    prompt: str = Field(
+
+    prompt_system: str = Field(
+        """Bertindaklah sebagai Jurnalis atau pembuat artikel yang ahli.
+      Tuliskan 1 artikel edukasi berdasarkan informasi berikut:
+      - Topik Utama: Ekonomi
+      - Kata Kunci yang WAJIB dibahas: Ekonomi
+
+      ATURAN MUTLAK FORMAT OUTPUT:
+      - Kamu WAJIB mengembalikan jawaban HANYA dalam format JSON yang valid.
+      - Struktur JSON harus memiliki persis 2 key: "title" dan "content".
+      - Key "title" berisi teks judul artikel murni.
+      - Key "content" berisi isi artikel "
+      "dalam format Markdown Dasar yang disederhanakan (Minimal 2000 kata).
+
+      ATURAN MARKDOWN UNTUK "content":
+      - GUNAKAN **teks** untuk poin penting.
+      - GUNAKAN # atau ## untuk subjudul.
+      - GUNAKAN - untuk list bullet.
+      - DIIZINKAN blockquote (>) MAKSIMAL 2 kali (untuk kutipan).
+      - DILARANG menggunakan nested blockquote (>>).
+      - DILARANG menggunakan nested list.""",
+      description="Instruksi Untuk Sistem Gemini"
+    )
+    prompt_user: str = Field(
         "Fokuskan pada dampak ekonomi sirkular bagi UMKM lokal",
         description="Instruksi spesifik atau fokus artikel",
     )

@@ -35,10 +35,15 @@ export default function DashboardHome() {
     sysLog("info", "Meminta data stats terbaru dari server...", exec_time);
 
     try {
+      const token = localStorage.getItem("mydigilearn_token");
+      
       const dataStatsAPI = `${API_V1}/data/stats`;
       const response = await fetch(dataStatsAPI, {
         method: "GET",
-        credentials: "include"
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
       })
 
       const result = await response.json();
@@ -60,10 +65,14 @@ export default function DashboardHome() {
     sysLog("info", "Meminta data analytics terbaru dari server...", exec_time);
 
     try {
+      const token = localStorage.getItem("mydigilearn_token");
       const dataAnalyticsAPI = `${API_V1}/data/analytics?topic_sort=${currentSort}`;
       const response = await fetch(dataAnalyticsAPI, {
         method: "GET",
-        credentials: "include"
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
       })
 
       const result = await response.json();
