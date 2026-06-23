@@ -23,6 +23,7 @@ from fastapi import (
     FastAPI,
     HTTPException,
     Query,
+    Request,
     Response,
     UploadFile,
 )
@@ -31,6 +32,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from jose import jwt
 from sqlalchemy import asc, desc, func, not_, or_, text
 from sqlalchemy.orm import Session
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from config import settings
 from config.database import engine, get_db
@@ -54,19 +56,33 @@ from utils import log_msg
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+class ForceCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        origin = request.headers.get("origin")
+
+        if origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept"
+            
+        return response
+
+app.add_middleware(ForceCORSMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    # URL frontend
-    # allow_origins=[
-    #     "http://localhost:3001",
-    #     "http://127.0.0.1:3001",
-    #     "http://localhost:8080",
-    #     "http://127.0.0.1:8080",
-    #     "http://frontend:8080",
-    #     "https://article-generation-omega.vercel.app"
-    # ],
-    allow_origins=["*"],
-    allow_credentials=False,  # WAJIB TRUE AGAR COOKIE BISA LEWAT
+    URL frontend
+    allow_origins=[
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://frontend:8080",
+        "https://article-generation-omega.vercel.app"
+    ],
+    allow_credentials=True,  # WAJIB TRUE AGAR COOKIE BISA LEWAT
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Process-Time"],
