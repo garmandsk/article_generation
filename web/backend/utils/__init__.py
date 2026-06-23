@@ -1,5 +1,6 @@
 from .utils import (
     clear_html,
+    generate_and_save_embeddings_to_db,
     get_from_chromadb,
     get_from_json,
     log_msg,

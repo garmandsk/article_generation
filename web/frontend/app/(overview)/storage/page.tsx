@@ -11,7 +11,8 @@ import {
   LayoutGrid,
   Download,
   UploadCloud,
-  Loader2
+  Loader2,
+  Trash2
 } from "lucide-react";
 import { EditableTitleBox } from "@/components/editableTitleBox";
 import { EditableContentBox } from "@/components/EditableContentBox";
@@ -43,12 +44,14 @@ export default function StoragePage() {
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // State Export & Import
+  // State Export & Import & Reset
+  const [isResetting, setIsResetting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // State modal confirm
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -105,6 +108,7 @@ export default function StoragePage() {
     }
   }, [debouncedSearch, filterType, sortOrder, limit]);
 
+  // Export
   const handleExportClick = () => setIsExportConfirmOpen(true);
 
   const handleExportExecute = useCallback(() => {
@@ -127,7 +131,8 @@ export default function StoragePage() {
     }
   };
 
-  const handleTriggerImport = () => {
+  // Import
+  const handleImportClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -164,6 +169,33 @@ export default function StoragePage() {
     }
   }, [fetchArticles, selectedFile]);
 
+  // Reset
+  const handleResetClick = () => setIsResetConfirmOpen(true);
+
+  const handleResetExecute = useCallback(async () => {
+    setIsResetting(true);
+
+    try {
+      const resetAPI = `${API_V1}/data/reset`;
+      const response = await fetch(resetAPI, {
+        method: "DELETE",
+        credentials: "include"
+      });
+
+      const result = await response.json();
+
+      if (result.status_code != 200) throw new Error(result.message);
+
+      await fetchArticles();
+
+      sysLog("success", result.message, result.exec_time || "0");
+    } catch (error) {
+      sysLog("error", `Gagal melakukan reset: ${error}`, "0");
+    } finally {
+      setIsResetting(false);
+    }
+  }, [fetchArticles]);
+
   useEffect(() => {
     const escapeCascadingRender = setTimeout(() => {
       fetchArticles();
@@ -191,7 +223,7 @@ export default function StoragePage() {
           </div>
         </div>
 
-        {/*  Aksi Database (Export/Import) */}
+        {/* Aksi Database (Export/Import/Reset) */}
         <div className="flex items-center gap-3">
           {/* Input File Tersembunyi */}
           <input
@@ -204,8 +236,8 @@ export default function StoragePage() {
 
           {/* Tombol Import */}
           <button
-            onClick={handleTriggerImport}
-            disabled={isImporting || isExporting}
+            onClick={handleImportClick}
+            disabled={isImporting || isExporting || isResetting}
             className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
           >
             {isImporting ? (
@@ -222,11 +254,25 @@ export default function StoragePage() {
           {/* Tombol Export */}
           <button
             onClick={handleExportClick}
-            disabled={isExporting || isImporting}
+            disabled={isExporting || isImporting || isResetting}
             className="flex items-center gap-2 px-4 py-2.5 bg-[#E59500]/10 hover:bg-[#E59500]/20 text-[#E59500] rounded-xl border border-[#E59500]/30 shadow-[0_0_10px_rgba(229,149,0,0.1)] hover:shadow-[0_0_15px_rgba(229,149,0,0.2)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
             <span className="text-sm font-semibold">Export Articles</span>
+          </button>
+
+          {/* Tombol Reset DB */}
+          <button
+            onClick={handleResetClick}
+            disabled={isExporting || isImporting || isResetting}
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.1)] hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+          >
+            {isResetting ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
+            )}
+            <span className="text-sm font-semibold">Reset DB</span>
           </button>
         </div>
       </div>
@@ -454,6 +500,23 @@ export default function StoragePage() {
             </span>
           </div>
         )}
+      </ConfirmationModal>
+
+      <ConfirmationModal
+        isOpen={isResetConfirmOpen}
+        onClose={() => setIsResetConfirmOpen(false)}
+        onConfirm={handleResetExecute}
+        title="Reset Database"
+        message="Apakah Anda yakin ingin me-reset seluruh data dalam database ?"
+        confirmText="Ya, Eksekusi Reset Database"
+        icon={<Trash2 size={24} />}
+      >
+        {/* <div className="bg-[#02040F] border border-slate-800 rounded-xl p-4 flex justify-between items-center mt-2">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+            Total Artikel
+          </span>
+          <span className="text-sm font-bold text-[#E59500]">{articles.length} Data</span>
+        </div> */}
       </ConfirmationModal>
     </div>
   );

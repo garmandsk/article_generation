@@ -16,7 +16,7 @@ Jantung dari operasi logika dan pemrosesan data berbeban tinggi. Dibangun menggu
 
 Jika Anda ingin menguji API atau model AI secara langsung:
 
-1. Pastikan Python 3.11+ terinstal.
+1. Pastikan Python 3.11+ terinstal (Rec: 3.11/3.12).
 2. Instal dependensi:
    ```bash
    cd web/backend

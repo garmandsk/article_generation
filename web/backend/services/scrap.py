@@ -7,7 +7,11 @@ from sqlalchemy.orm import Session
 from config import settings
 from config.database import SessionLocal
 from models.models import Article
-from utils import log_msg, parse_time, save_to_chromadb
+from utils import (
+    generate_and_save_embeddings_to_db,
+    log_msg,
+    parse_time,
+)
 
 
 async def scrap_newer_list_articles(
@@ -395,8 +399,8 @@ async def scrap_articles_stream(payload, token):
             else:
                 yield evt
 
-        # TAHAP 3: Sinkronisasi ChromaDB
-        yield log_msg("Memasukkan data ke Vector Database (ChromaDB)", 85)
+        # TAHAP 3: Sinkronisasi pgvector
+        yield log_msg("Memasukkan data ke Vector Database (pgvector)", 85)
         db: Session = SessionLocal()
         try:
             unsynced_articles = (
@@ -414,7 +418,7 @@ async def scrap_articles_stream(payload, token):
                     90,
                 )
 
-                lean_data_for_chroma = [
+                lean_data_for_vector = [
                     {
                         "id": art.id,
                         "title": art.title or "",
@@ -425,17 +429,16 @@ async def scrap_articles_stream(payload, token):
                 ]
 
                 # Offload tugas AI berat agar tidak memblokir loop Stream
-                await asyncio.to_thread(save_to_chromadb, token, lean_data_for_chroma)
+                await asyncio.to_thread(
+                    generate_and_save_embeddings_to_db, lean_data_for_vector
+                )
 
-                for art in unsynced_articles:
-                    art.status = "vectorized"
-                db.commit()
                 yield log_msg(
-                    "✅ Sinkronisasi Postgres -> ChromaDB selesai sempurna.", 95
+                    "✅ Sinkronisasi Postgres -> pgvector selesai sempurna.", 95
                 )
             else:
                 yield log_msg(
-                    "✅ Seluruh data Postgres dan ChromaDB sudah sinkron.", 95
+                    "✅ Seluruh data Postgres dan pgvector sudah sinkron.", 95
                 )
 
         finally:
@@ -443,7 +446,7 @@ async def scrap_articles_stream(payload, token):
             total_content = (
                 db.query(Article).filter(Article.status != "slug_only").count()
             )
-            total_chromadb = (
+            total_vectorized = (
                 db.query(Article)
                 .filter(
                     Article.status.in_(
@@ -467,7 +470,7 @@ async def scrap_articles_stream(payload, token):
                 "system_health": {
                     "total_list": total_list,
                     "total_content": total_content,
-                    "total_chromadb": total_chromadb,
+                    "total_chromadb": total_vectorized,
                 },
             },
             "exec_time": exec_time_sec,

@@ -29,7 +29,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from jose import jwt
-from sqlalchemy import asc, desc, func, not_, or_
+from sqlalchemy import asc, desc, func, not_, or_, text
 from sqlalchemy.orm import Session
 
 from config import settings
@@ -58,8 +58,8 @@ app.add_middleware(
     CORSMiddleware,
     # URL frontend
     allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
         "http://localhost:8080",
         "http://127.0.0.1:8080",
         "http://frontend:8080",
@@ -627,6 +627,31 @@ async def import_database(
         }
 
 
+@app.delete("/api/v1/data/reset")
+def reset_database(
+    db: Session = Depends(get_db), token: str = Depends(get_mydigilearn_token)
+):
+    print("Mencoba reset db")
+
+    try:
+        db.execute(text("TRUNCATE TABLE articles RESTART IDENTITY"))
+        db.commit()
+
+        return {
+            "status_code": 200,
+            "status": "success",
+            "message": "Tabel articles berhasil di-reset",
+        }
+    except Exception as e:
+        db.rollback()
+        return {
+            "status_code": 500,
+            "status": "error",
+            "message": f"Gagal melakukan reset database: {str(e)}",
+        }
+
+
+# Scraping
 @app.post("/api/v1/run/scrap", response_class=EventSourceResponse)
 async def run_scrap(
     payload: ScrapPayload,
