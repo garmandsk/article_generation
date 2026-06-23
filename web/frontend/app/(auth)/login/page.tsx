@@ -27,9 +27,9 @@ export default function LoginPage() {
       username: username,
       password: password
     }
-    console.log("Mengirim data ke server: ", payload)
-    console.log("username: ", username)
-    console.log("password: ", password)
+    // console.log("Mengirim data ke server: ", payload)
+    // console.log("username: ", username)
+    // console.log("password: ", password)
 
     try {
       const response = await fetch(loginAPI, {
