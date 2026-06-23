@@ -66,7 +66,7 @@ app.add_middleware(
         # "http://frontend:8080",
         # "https://article-generation-omega.vercel.app"
     ],
-    allow_credentials=True,  # WAJIB TRUE AGAR COOKIE BISA LEWAT
+    allow_credentials=False,  
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Process-Time"],
