@@ -57,16 +57,16 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     # URL frontend
-    allow_origins=[
-        # "*",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
-        "http://frontend:8080",
-        "https://article-generation-omega.vercel.app"
-    ],
-    allow_credentials=True,  
+    # allow_origins=[
+    #     "http://localhost:3001",
+    #     "http://127.0.0.1:3001",
+    #     "http://localhost:8080",
+    #     "http://127.0.0.1:8080",
+    #     "http://frontend:8080",
+    #     "https://article-generation-omega.vercel.app"
+    # ],
+    allow_origins=["*"],
+    allow_credentials=False,  # WAJIB TRUE AGAR COOKIE BISA LEWAT
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Process-Time"],
@@ -156,8 +156,8 @@ def login_app(payload: LoginCredentials, response: Response):
         key=settings.AGC_TOKEN_NAME,
         value=agc_token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=True,
+        samesite="none",
         max_age=7200,
     )
 
@@ -165,8 +165,8 @@ def login_app(payload: LoginCredentials, response: Response):
         key=settings.MYDIGILEARN_TOKEN_NAME,
         value=mydigilearn_token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=True,
+        samesite="none",
         max_age=7200,
     )
 
@@ -183,10 +183,10 @@ def login_app(payload: LoginCredentials, response: Response):
 @app.post("/api/v1/auth/logout")
 def logout_app(response: Response):
     response.delete_cookie(
-        key=settings.AGC_TOKEN_NAME, httponly=True, secure=False, samesite="lax"
+        key=settings.AGC_TOKEN_NAME, httponly=True, secure=True, samesite="none"
     )
     response.delete_cookie(
-        key=settings.MYDIGILEARN_TOKEN_NAME, httponly=True, secure=False, samesite="lax"
+        key=settings.MYDIGILEARN_TOKEN_NAME, httponly=True, secure=True, samesite="none"
     )
 
     return {
