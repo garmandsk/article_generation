@@ -60,14 +60,14 @@ export default function DashboardHome() {
 
     try {
       const token = localStorage.getItem("mydigilearn_token");
-      console.log("token");
-      console.log(token);
+      // console.log("token");
+      // console.log(token);
       const dataStatsAPI = `${API_V1}/data/stats`;
       const response = await fetch(dataStatsAPI, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          "Authorization": `Bearer ${token}`
         }
       });
 
@@ -90,15 +90,15 @@ export default function DashboardHome() {
 
     try {
       const token = localStorage.getItem("mydigilearn_token");
-      console.log("token");
-      console.log(token);
+      // console.log("token");
+      // console.log(token);
 
       const dataAnalyticsAPI = `${API_V1}/data/analytics?topic_sort=${currentSort}`;
       const response = await fetch(dataAnalyticsAPI, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          "Authorization": `Bearer ${token}`
         }
       });
 

@@ -17,6 +17,19 @@ export const usePipelineStream = () => {
     return new Promise((resolve, reject) => {
       fetch(endpoint, options)
         .then(async (response) => {
+
+          if (!response.ok) {
+            let errorMessage = `HTTP Error ${response.status}`;
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData.detail || errorData.message || errorMessage
+            } catch (e) {
+
+            }
+
+            throw new Error(errorMessage)
+          }
+
           const reader = response.body?.getReader();
 
           if (!reader) throw new Error("Gagal membaca stream jaringan");
@@ -65,7 +78,7 @@ export const usePipelineStream = () => {
           }
         })
         .catch((err) => {
-          setLogs((prev) => [...prev, `ERROR: Koneksi terputus dari server: ${err}`]);
+          setLogs((prev) => [...prev, `ERROR: ${err.message || err}`]);
           setTimeout(() => setIsLoading(false), 3000);
           reject(err);
         });
