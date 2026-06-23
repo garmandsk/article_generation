@@ -68,13 +68,14 @@ export default function LeftSidebar() {
 
   const handleLogout = async () => {
     try {
+      const token = localStorage.getItem("mydigilearn_token");
       const logoutAPI = `${API_V1}/auth/logout`;
       await fetch(logoutAPI, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
-        credentials: "include"
       });
 
       localStorage.removeItem("agc_token");
