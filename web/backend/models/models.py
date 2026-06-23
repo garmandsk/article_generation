@@ -1,6 +1,7 @@
 # --- models.py ---
 import uuid
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.sql import func
@@ -13,7 +14,7 @@ class Article(Base):
 
     # Jika ID tidak dikirim dari JSON, otomatis buat UUID v4 baru berbentuk string
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    id_inc = Column(Integer, unique=True, index=True)
+    id_inc = Column(Integer, unique=True, index=True, nullable=True)
     slug = Column(String, unique=True, index=True, nullable=False)
     title = Column(String, nullable=True)
     content = Column(Text, nullable=True)
@@ -30,3 +31,5 @@ class Article(Base):
 
     # Timestamp otomatis waktu data masuk ke database
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    embedding = Column(Vector(384), nullable=True)
+    clean_data = Column(Text, nullable=True)

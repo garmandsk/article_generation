@@ -3,6 +3,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import nltk
+import numpy as np
 import pandas as pd
 from bertopic import BERTopic
 from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
@@ -16,7 +17,7 @@ from umap import UMAP
 from config import settings
 from config.database import SessionLocal
 from models.models import Article
-from utils import get_from_chromadb, log_msg  # Pastikan log_msg di-import
+from utils import log_msg  # Pastikan log_msg di-import
 
 
 def embedding_model_prep(model_name, token):
@@ -97,13 +98,18 @@ async def cluster_articles_stream(payload, token):
         )
 
         # ================================================================
-        # TAHAP 1: FILTER WAKTU VIA POSTGRESQL DULU
+        # TAHAP 1 & 2: TARIK TEKS DAN VEKTOR SEKALIGUS DARI POSTGRESQL
         # ================================================================
+        yield log_msg("📦 Menarik Teks dan Vektor (pgvector) dari Database...", 5)
         pg_db = SessionLocal()
-        valid_ids_list = []
+
         try:
-            # Ambil hanya artikel yang sudah memiliki teks/vektor
-            query = pg_db.query(Article.id).filter(
+            # Kita langsung menarik id, content, dan embedding sekaligus
+            query = pg_db.query(
+                Article.id,
+                Article.clean_data,
+                Article.embedding
+            ).filter(
                 Article.status.in_(["vectorized", "clustered", "outlier_cluster"])
             )
 
@@ -113,42 +119,34 @@ async def cluster_articles_stream(payload, token):
                 query = query.filter(Article.published_at >= target_date)
 
             valid_articles = query.all()
-            valid_ids_list = [str(art.id) for art in valid_articles]
+
+            # Jika tidak ada artikel, hentikan
+            if not valid_articles:
+                yield log_msg(
+                    f"❌ Tidak ada artikel "
+                    f"yang diterbitkan dalam {days_ago} hari terakhir.",
+                    status="error",
+                )
+                return
+
+            total_docs = len(valid_articles)
+            if total_docs < 10:
+                yield log_msg(
+                    f"❌ Data terlalu sedikit ({total_docs} artikel). "
+                    "Minimal butuh 10 artikel untuk membentuk klaster yang valid.",
+                    status="error",
+                )
+                return
+
+            # Ekstrak data hasil query ke dalam list yang dibutuhkan BERTopic
+            article_ids = [str(art.id) for art in valid_articles]
+            docs = [art.clean_data or "" for art in valid_articles]
+
+            # Konversi array list dari pgvector kembali menjadi Numpy Array
+            embedding_vectors = np.array([art.embedding for art in valid_articles])
+
         finally:
             pg_db.close()  # Tutup sesi sejenak untuk hemat memori
-
-        # Pengaman jika tidak ada artikel di rentang waktu tersebut
-        if not valid_ids_list:
-            yield log_msg(
-                f"❌ Tidak ada artikel yang "
-                f"diterbitkan dalam {days_ago} hari terakhir.",
-                status="error",
-            )
-            return
-
-        # ================================================================
-        # TAHAP 2: TARIK VEKTOR SELEKTIF DARI CHROMADB
-        # ================================================================
-        yield log_msg(f"📦 Menarik {len(valid_ids_list)} Vektor dari ChromaDB...", 5)
-
-        collection = get_from_chromadb(settings.DB_CHROMA_PATH, settings.DB_NAME)
-
-        chroma_db = collection.get(
-            ids=valid_ids_list, include=["embeddings", "documents"]
-        )
-
-        chroma_ids = chroma_db["ids"]
-        docs = chroma_db["documents"]
-        embedding_vectors = chroma_db["embeddings"]
-
-        total_docs = len(docs)
-        if total_docs < 10:
-            yield log_msg(
-                f"❌ Data terlalu sedikit ({total_docs} artikel). "
-                "Minimal butuh 10 artikel untuk membentuk klaster yang valid.",
-                status="error",
-            )
-            return
 
         # ================================================================
         # TAHAP 3: SETUP BERTOPIC & MLOPS PIPELINE
@@ -180,11 +178,10 @@ async def cluster_articles_stream(payload, token):
         recommend_targets = payload.recommend_target
         min_cf_range = payload.min_cf_range
 
-        # Pengamanan jumlah n_neighbors
+        # Pengamanan parameter
         requested_n_neighbors = payload.umap_config.n_neighbors
         safe_n_neighbors = max(2, min(requested_n_neighbors, total_docs - 1))
 
-        # Pengamanan jumlah min_cluster_size
         requested_min_cluster_size = payload.hdbscan_config.min_cluster_size
         safe_min_cluster_size = max(2, min(requested_min_cluster_size, total_docs // 2))
 
@@ -221,8 +218,8 @@ async def cluster_articles_stream(payload, token):
         )
 
         yield log_msg(
-            "🚀 Memulai proses fitting & transformasi BERTopic "
-            "(Ini akan memakan waktu)...",
+            "🚀 Memulai proses fitting & "
+            "transformasi BERTopic (Ini akan memakan waktu)...",
             20,
         )
 
@@ -236,60 +233,54 @@ async def cluster_articles_stream(payload, token):
         # ================================================================
         # TAHAP 4: SINKRONISASI HASIL CLUSTER KEMBALI KE POSTGRESQL
         # ================================================================
-        yield log_msg("🔄 Menarik metadata dari PostgreSQL untuk disinkronisasi...", 65)
+        yield log_msg("🔄 Memetakan hasil perhitungan matriks AI ke DataFrame...", 65)
 
-        pg_db = SessionLocal()  # Buka sesi baru untuk update
-        try:
-            pg_db_articles = (
-                pg_db.query(Article).filter(Article.id.in_(chroma_ids)).all()
-            )
-            article_map = {
-                art.id: {"id_inc": art.id_inc, "slug": art.slug, "title": art.title}
-                for art in pg_db_articles
+        # Kita langsung membuat DataFrame
+        # dari list yang sudah ada (menghemat waktu query database)
+        df_raw = pd.DataFrame(
+            {
+                "id": article_ids,
+                "article_text": docs,
+                "id_topic": topic,
+                "skor_cf": probabilities,
             }
+        )
 
-            mapped_metada = [article_map.get(cid, {}) for cid in chroma_ids]
-            df_raw = pd.DataFrame(mapped_metada)
+        mapping_topic_name = (
+            topic_model.get_topic_info().set_index("Topic")["Name"].to_dict()
+        )
+        df_raw["name_topic"] = df_raw["id_topic"].map(mapping_topic_name)
 
-            df_raw["id"] = chroma_ids
-            df_raw["article_text"] = docs
-            df_raw["id_topic"] = topic
-            df_raw["skor_cf"] = probabilities
+        # Filtering Outlier & Confidence
+        yield log_msg(
+            f"🧹 Membersihkan outlier "
+            f"dan memfilter confidence > {min_cf_range * 100}%...",
+            70,
+        )
+        df_clean = df_raw[
+            (df_raw["id_topic"] != -1) & (df_raw["skor_cf"] >= min_cf_range)
+        ]
 
-            mapping_topic_name = (
-                topic_model.get_topic_info().set_index("Topic")["Name"].to_dict()
-            )
-            df_raw["name_topic"] = df_raw["id_topic"].map(mapping_topic_name)
+        yield log_msg(
+            f"📊 Total Awal: {len(df_raw)} | Lulus Filter: {len(df_clean)}", 75
+        )
 
-            # Filtering Outlier & Confidence
-            yield log_msg(
-                f"🧹 Membersihkan outlier dan memfilter "
-                F"confidence > {min_cf_range * 100}%...",
-                70,
-            )
-            df_clean = df_raw[
-                (df_raw["id_topic"] != -1) & (df_raw["skor_cf"] >= min_cf_range)
-            ]
+        df_article_topic = df_clean["name_topic"].value_counts().reset_index()
+        df_article_topic.columns = ["name_topic", "article_count"]
+        df_article_topic_ascending = df_article_topic.sort_values(
+            by="article_count", ascending=True
+        )
 
-            yield log_msg(
-                f"📊 Total Awal: {len(df_raw)} | Lulus Filter: {len(df_clean)}", 75
-            )
+        df_recommend = df_article_topic_ascending.head(recommend_targets)
 
-            df_article_topic = df_clean["name_topic"].value_counts().reset_index()
-            df_article_topic.columns = ["name_topic", "article_count"]
-            df_article_topic_ascending = df_article_topic.sort_values(
-                by="article_count", ascending=True
-            )
+        recommend_cluster_ids = []
+        for text in df_recommend["name_topic"]:
+            cid, _, _ = extract_info_cluster(text)
+            recommend_cluster_ids.append(cid)
 
-            df_recommend = df_article_topic_ascending.head(recommend_targets)
-
-            recommend_cluster_ids = []
-            for text in df_recommend["name_topic"]:
-                cid, _, _ = extract_info_cluster(text)
-                recommend_cluster_ids.append(cid)
-
-            # Reset SEMUA status artikel lama agar dashboard UI bersih
-            # (hanya menampilkan klaster dari rentang waktu yang baru dipilih)
+        # MULAI UPDATE DATABASE
+        pg_db = SessionLocal()
+        try:
             yield log_msg("💾 Membersihkan sisa label cluster lama di database...", 80)
             pg_db.query(Article).filter(
                 Article.status.in_(["clustered", "outlier_cluster"])
@@ -303,11 +294,8 @@ async def cluster_articles_stream(payload, token):
                 synchronize_session=False,
             )
 
-            # Update status outlier untuk data yang di-cluster saat ini
-            yield log_msg(
-                "💾 Menyimpan label cluster sementara (outlier) ke PostgreSQL...", 82
-            )
-            pg_db.query(Article).filter(Article.id.in_(chroma_ids)).update(
+            yield log_msg("💾 Menyimpan label cluster sementara (outlier)...", 82)
+            pg_db.query(Article).filter(Article.id.in_(article_ids)).update(
                 {
                     "cluster_topic": None,
                     "cluster_keywords": None,
@@ -317,10 +305,7 @@ async def cluster_articles_stream(payload, token):
                 synchronize_session=False,
             )
 
-            yield log_msg(
-                "💾 Menulis ulang label cluster yang valid ke dalam database...", 85
-            )
-
+            yield log_msg("💾 Menulis ulang label cluster yang valid...", 85)
             total_clean = len(df_clean)
             for index, row in df_clean.iterrows():
                 article_id = str(row["id"])
@@ -348,61 +333,59 @@ async def cluster_articles_stream(payload, token):
             pg_db.commit()
             yield log_msg("✅ Database PostgreSQL berhasil diperbarui sepenuhnya.", 95)
 
-            # Siapkan Output Final
-            final_cluster_list = []
-            for index, row in df_article_topic_ascending.iterrows():
-                text = str(row["name_topic"])
-                article_count = int(row["article_count"])
-                cid, cname, ckeywords = extract_info_cluster(text)
-                recommend_status = bool(cid in recommend_cluster_ids)
-
-                final_cluster_list.append(
-                    {
-                        "cluster_id": cid,
-                        "cluster_name": cname,
-                        "cluster_keywords": ckeywords,
-                        "article_count": article_count,
-                        "is_recommended": recommend_status,
-                    }
-                )
-
-            final_cluster_list = sorted(
-                final_cluster_list, key=lambda x: x["cluster_id"]
-            )
-
-            end_time = time.perf_counter()
-            exec_time_sec = str(round(end_time - start_time)) + "s"
-
-            final_result = {
-                "status_code": 200,
-                "status": "success",
-                "message": f"Clustering selesai. {len(final_cluster_list)} "
-                "cluster terbentuk dari data "
-                f"{'semua waktu' if days_ago == 0 else f'{days_ago} hari terakhir'}.",
-                "data": {
-                    "metadatas": {
-                        "total_cluster": len(final_cluster_list),
-                        "total_recommended": len(recommend_cluster_ids),
-                        "clustered_total_article": len(df_clean),
-                        "outlier_total_article": len(df_raw) - len(df_clean),
-                        "min_cf_range": min_cf_range,
-                        "time_filter_days": days_ago,
-                    },
-                    "cluster": final_cluster_list,
-                },
-                "exec_time": exec_time_sec,
-            }
-
-            yield {
-                "status": "done",
-                "text": final_result["message"],
-                "step": 100,
-                "total": 100,
-                "result": final_result,
-            }
-
         finally:
             pg_db.close()
+
+        # Siapkan Output Final
+        final_cluster_list = []
+        for index, row in df_article_topic_ascending.iterrows():
+            text = str(row["name_topic"])
+            article_count = int(row["article_count"])
+            cid, cname, ckeywords = extract_info_cluster(text)
+            recommend_status = bool(cid in recommend_cluster_ids)
+
+            final_cluster_list.append(
+                {
+                    "cluster_id": cid,
+                    "cluster_name": cname,
+                    "cluster_keywords": ckeywords,
+                    "article_count": article_count,
+                    "is_recommended": recommend_status,
+                }
+            )
+
+        final_cluster_list = sorted(final_cluster_list, key=lambda x: x["cluster_id"])
+
+        end_time = time.perf_counter()
+        exec_time_sec = str(round(end_time - start_time)) + "s"
+
+        final_result = {
+            "status_code": 200,
+            "status": "success",
+            "message": f"Clustering selesai. {len(final_cluster_list)} "
+            "cluster terbentuk dari data "
+            f"{'semua waktu' if days_ago == 0 else f'{days_ago} hari terakhir'}.",
+            "data": {
+                "metadatas": {
+                    "total_cluster": len(final_cluster_list),
+                    "total_recommended": len(recommend_cluster_ids),
+                    "clustered_total_article": len(df_clean),
+                    "outlier_total_article": len(df_raw) - len(df_clean),
+                    "min_cf_range": min_cf_range,
+                    "time_filter_days": days_ago,
+                },
+                "cluster": final_cluster_list,
+            },
+            "exec_time": exec_time_sec,
+        }
+
+        yield {
+            "status": "done",
+            "text": final_result["message"],
+            "step": 100,
+            "total": 100,
+            "result": final_result,
+        }
 
     except Exception as e:
         yield log_msg(f"❌ Gagal memproses clustering: {str(e)}", status="error")

@@ -8,8 +8,12 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from chromadb.utils import embedding_functions
 from fastapi import HTTPException
+from sentence_transformers import SentenceTransformer
+from sqlalchemy.orm import Session
 
 from config import settings
+from config.database import SessionLocal
+from models.models import Article
 
 
 def get_from_json(file_path):
@@ -207,3 +211,89 @@ def parse_time(raw_time):
         parsed_time = datetime.fromisoformat(safe_time_str)
 
     return parsed_time
+
+
+def generate_and_save_embeddings_to_db(articles_data):
+    """
+    Fungsi ini berjalan di thread terpisah.
+    Menerima list of dict berisi 'id', 'title', 'tags', dan 'content'.
+    """
+    if not articles_data:
+        return
+
+    embedder = SentenceTransformer(
+        model_name_or_path="paraphrase-multilingual-MiniLM-L12-v2",
+        token=settings.HF_TOKEN,
+    )
+
+    # 1. Konversi data list of dict menjadi Pandas DataFrame
+    df = pd.DataFrame(articles_data)
+
+    # Antisipasi jika kolom tidak ada agar tidak KeyError
+    if "title" not in df.columns:
+        df["title"] = ""
+    if "content" not in df.columns:
+        df["content"] = ""
+
+    # 2. Eksekusi pembersihan HTML
+    df["clean_content"] = df["content"].apply(clear_html)
+
+    # Menggabungkan tags (menangani kasus jika tags berupa list atau tidak ada)
+    if "tags" in df.columns:
+        df["tags_string"] = df["tags"].apply(
+            lambda x: " ".join(x) if isinstance(x, list) else str(x)
+        )
+    else:
+        df["tags_string"] = ""
+
+    # Menggabungkan data title, content, dan tags dengan aman (hindari NaN)
+    df["complete_data"] = (
+        df["title"].fillna("").astype(str)
+        + " "
+        + df["tags_string"].astype(str)
+        + " "
+        + df["clean_content"].fillna("").astype(str)
+    )
+
+    # Menormalisasikan data
+    df["ready_data"] = df["complete_data"].apply(text_normalization)
+
+    # 3. Filter data kosong (Ubah string yang hanya berisi spasi menjadi NaN lalu drop)
+    df["ready_data"] = df["ready_data"].replace(r"^\s*$", pd.NA, regex=True)
+    df_clean = df.dropna(subset=["ready_data"]).copy()
+
+    if df_clean.empty:
+        return  # Hentikan proses jika semua teks ternyata kosong setelah dicuci
+
+    # 4. Ekstraksi teks yang SUDAH BERSIH untuk proses vektorisasi
+    texts = df_clean["ready_data"].tolist()
+
+    # 5. Generasi matriks vektor
+    embeddings = embedder.encode(texts)
+
+    # 6. Buka sesi database baru khusus untuk thread ini
+    db: Session = SessionLocal()
+    try:
+        # Gunakan df_clean agar ID yang
+        # diperbarui benar-benar sejajar dengan urutan vektor
+        for idx, (index, row) in enumerate(df_clean.iterrows()):
+            article_id = row["id"]
+            clean_text_data = str(row["ready_data"])
+            vector_list = embeddings[idx].tolist()
+
+            # Update baris artikel menggunakan SQLAlchemy
+            db.query(Article).filter(Article.id == article_id).update(
+                {
+                    Article.clean_data: clean_text_data,
+                    Article.embedding: vector_list,
+                    Article.status: "vectorized"
+                },
+                synchronize_session=False,
+            )
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()
