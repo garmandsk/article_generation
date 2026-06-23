@@ -69,7 +69,7 @@ export default function DashboardHome() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         }
-      });
+      })
 
       const result = await response.json();
       console.log("result", result);
@@ -100,7 +100,7 @@ export default function DashboardHome() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         }
-      });
+      })
 
       const result = await response.json();
       if (result.status_code != 200) throw new Error(result.message || result.detail);
