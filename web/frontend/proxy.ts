@@ -22,7 +22,7 @@ export async function proxy(request: NextRequest) {
   let isTokenValid = false;
   
   // console.log("Secret key: ", SECRET_KEY)
-  if (agc_token && mydigilearn_token) {
+  if (agc_token) {
     try {
       // jwtVerify akan membongkar token, mengecek signature, DAN mengecek waktu expired (exp)
       await jwtVerify(agc_token, SECRET_KEY);

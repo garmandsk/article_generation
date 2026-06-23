@@ -51,15 +51,17 @@ export default function ScrapPage() {
     sysLog("info", `Memulai proses Scraping dengan mode: ${payload.mode}...`, exec_time);
 
     try {
-      // Sesuaikan URL ini dengan endpoint FastAPI Scrap milikmu
+      const token = localStorage.getItem("mydigilearn_token");
       const scrapAPI = `${API_V1}/run/scrap`; 
-      
       const result: ScrapResult = await executeStream(scrapAPI, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(payload),
-        credentials: "include"
       })
+      
       if (result.status_code != 200) throw new Error(result.message || result.detail);
 
       setScrapResult(result);

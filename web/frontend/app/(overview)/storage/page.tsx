@@ -80,10 +80,14 @@ export default function StoragePage() {
         limit: limit
       });
 
+      const token = localStorage.getItem("mydigilearn_token");
       const dataArticlesAPI = `${API_V1}/data/articles?${queryParams.toString()}`;
       const response = await fetch(dataArticlesAPI, {
         method: "GET",
-        credentials: "include"
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
       });
 
       const result = await response.json();
@@ -148,11 +152,15 @@ export default function StoragePage() {
     formData.append("file", selectedFile);
 
     try {
+      const token = localStorage.getItem("mydigilearn_token");
       const importAPI = `${API_V1}/data/import`;
       const response = await fetch(importAPI, {
         method: "POST",
         body: formData,
-        credentials: "include"
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
       });
 
       const result = await response.json();
@@ -176,10 +184,14 @@ export default function StoragePage() {
     setIsResetting(true);
 
     try {
+      const token = localStorage.getItem("mydigilearn_token");
       const resetAPI = `${API_V1}/data/reset`;
       const response = await fetch(resetAPI, {
         method: "DELETE",
-        credentials: "include"
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
       });
 
       const result = await response.json();
