@@ -67,9 +67,9 @@ export default function DashboardHome() {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          "Authorization": `Bearer ${token}`
         }
-      });
+      })
 
       const result = await response.json();
       console.log("result", result);
@@ -98,9 +98,9 @@ export default function DashboardHome() {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          "Authorization": `Bearer ${token}`
         }
-      });
+      })
 
       const result = await response.json();
       if (result.status_code != 200) throw new Error(result.message || result.detail);
