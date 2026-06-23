@@ -58,15 +58,15 @@ app.add_middleware(
     CORSMiddleware,
     # URL frontend
     allow_origins=[
-        "*",
-        # "http://localhost:3001",
-        # "http://127.0.0.1:3001",
-        # "http://localhost:8080",
-        # "http://127.0.0.1:8080",
-        # "http://frontend:8080",
-        # "https://article-generation-omega.vercel.app"
+        # "*",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://frontend:8080",
+        "https://article-generation-omega.vercel.app"
     ],
-    allow_credentials=False,  
+    allow_credentials=True,  
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Process-Time"],
