@@ -19,8 +19,41 @@ const jetBrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AGC - Article Generation & Clustering",
-  description: "Application for Article Generation and Clustering"
+  title: {
+    // %s akan diganti dengan title spesifik dari setiap halaman
+    template: "%s | Article Generation & Clustering", 
+    default: "Article Generation & Clustering - Buat Konten Dan Pemetaan Topik Otomatis",
+  },
+  description: "Platform cerdas berbasis AI untuk menghasilkan artikel & Pemetaan Topik.",
+  keywords: ["AI Article Writer", "Generative AI", "Markdown", "EduTech", "NextJS", "FastAPI", "BERTopic"],
+  authors: [{ name: "garmandsk" }], // Berikan namamu kredit sebagai kreator!
+  creator: "garmandsk",
+  
+  // Konfigurasi Open Graph (Untuk Tampilan Preview di WhatsApp/LinkedIn/Facebook)
+  openGraph: {
+    type: "website",
+    locale: "id_ID",
+    url: "https://article-generation-omega.vercel.app", // URL Vercel-mu
+    siteName: "Article Generation & Clustering",
+    title: "Article Generation & Clustering",
+    description: "Hasilkan artikel edukasi berkualitas tinggi & Pemetaan Topik dalam hitungan detik menggunakan kecerdasan buatan.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Article Generation & Clustering Preview",
+      },
+    ],
+  },
+  
+  // Konfigurasi Twitter Card
+  twitter: {
+    card: "summary_large_image",
+    title: "Article Generation & Clustering",
+    description: "Hasilkan artikel edukasi berkualitas tinggi & Pemetaan Topik dalam hitungan detik menggunakan kecerdasan buatan.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
