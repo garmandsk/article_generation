@@ -1,23 +1,10 @@
 "use client";
 
-import { Metadata } from "next";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Activity } from "lucide-react";
 import LeftSidebar from "@/components/LeftSidebar";
 import RightSidebar from "@/components/RightSidebar";
-
-export const metadata: Metadata = {
-  title: {
-    template: "%s | Workspace",
-    default: "Workspace | Article Generator AI"
-  },
-  robots: {
-    index: false,
-    follow: false,
-    nocache: true
-  }
-};
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
