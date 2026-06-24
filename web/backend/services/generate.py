@@ -1,20 +1,24 @@
 import asyncio
 import json
-import re
 import time
+import uuid
 
 from google import genai
+from slugify import slugify
+from sqlalchemy.exc import IntegrityError
 
 from config.database import SessionLocal
 from models.models import Article
 from utils import log_msg  # Pastikan ini di-import
 
 
-def slugify(text: str) -> str:
-    text = text.lower()
-    text = re.sub(r"[^a-z0-9\s-]", "", text)
-    text = re.sub(r"[\s-]+", "-", text)
-    return text.strip("-")
+def generate_slug(title: str) -> str:
+    safe_slug = slugify(title, allow_unicode=True)
+
+    if not safe_slug:
+        safe_slug = f"article-{uuid.uuid4().hex[:8]}"
+
+    return safe_slug
 
 
 # Kita gabungkan fungsi pemanggilan dan orkestrasinya menjadi satu Generator Stream
@@ -89,8 +93,9 @@ async def generate_article_stream(payload):
                 )
                 return
 
+            print(f"⚠️ Gagal (Kemungkinan Hallucination / JSON rusak): {error_msg}")
             yield log_msg(
-                f"⚠️ Gagal (Kemungkinan Hallucination / JSON rusak): {error_msg}",
+                "⚠️ Gagal (Kemungkinan Hallucination / JSON rusak)",
                 20 + (try_count * 5),
             )
 
@@ -115,7 +120,7 @@ async def generate_article_stream(payload):
     db = SessionLocal()
     try:
         generated_title = response_generate["data"]["title"]
-        generated_slug = slugify(generated_title)
+        generated_slug = generate_slug(generated_title)
 
         new_article = Article(
             slug=generated_slug,
@@ -130,9 +135,18 @@ async def generate_article_stream(payload):
         db.refresh(new_article)
 
         yield log_msg(f"✅ Artikel tersimpan permanen dengan ID: {new_article.id}", 95)
+    except IntegrityError as e:
+        db.rollback()
+        print(f"Database Error: {str(e)}")
+        yield log_msg(
+            "❌ Gagal menyimpan artikel. Judul mungkin sudah digunakan "
+            "atau terjadi masalah format.",
+            status="error",
+        )
     except Exception as e:
         db.rollback()
-        yield log_msg(f"❌ Gagal menyimpan ke database PostgreSQL: {e}", status="error")
+        print(f"Kesalahan tidak terduga saat menyimpan data: {e}")
+        yield log_msg("❌ Kesalah tidak terduga saat menyimpan data", status="error")
         return
     finally:
         db.close()

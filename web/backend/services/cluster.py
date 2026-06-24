@@ -106,12 +106,8 @@ async def cluster_articles_stream(payload, token):
         try:
             # Kita langsung menarik id, content, dan embedding sekaligus
             query = pg_db.query(
-                Article.id,
-                Article.clean_data,
-                Article.embedding
-            ).filter(
-                Article.status.in_(["vectorized", "clustered", "outlier_cluster"])
-            )
+                Article.id, Article.clean_data, Article.embedding
+            ).filter(Article.status.in_(["vectorized", "clustered", "outlier_cluster"]))
 
             # Terapkan filter temporal jika days_ago > 0
             if days_ago > 0:
@@ -388,4 +384,7 @@ async def cluster_articles_stream(payload, token):
         }
 
     except Exception as e:
-        yield log_msg(f"❌ Gagal memproses clustering: {str(e)}", status="error")
+        print(f"Kesalahan tidak terduga saat memproses clustering: {str(e)}")
+        yield log_msg(
+            "❌ Kesalahan tidak terduga saat memproses clustering", status="error"
+        )
