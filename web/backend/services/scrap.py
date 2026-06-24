@@ -115,7 +115,8 @@ async def scrap_newer_list_articles(
                             break
 
                 except Exception as e:
-                    yield log_msg(f"⚠️ Gangguan jaringan pada halaman {page}: {e}")
+                    print(f"Gangguan jaringan pada halaman {page}: {e}")
+                    yield log_msg(f"⚠️ Gangguan jaringan pada halaman {page}")
                     break
 
                 last_page = page
@@ -230,7 +231,8 @@ async def scrap_older_list_articles(headers, max_scrap, limit_article_per_page):
                                 stop_scrap = True
                                 break
                 except Exception as e:
-                    yield log_msg(f"⚠️ Error di halaman {page}: {e}")
+                    print(f"Error di halaman {page}: {e}")
+                    yield log_msg(f"⚠️ Error di halaman {page}")
                     break
 
                 last_page = page
@@ -328,7 +330,8 @@ async def scrap_content_articles(headers):
                     downloaded_count += 1
                     i += 1
                 except Exception as e:
-                    yield log_msg(f"⚠️ Error tak terduga pada {slug}: {e}")
+                    print(f"Error tak terduga pada {slug}: {e}")
+                    yield log_msg(f"⚠️ Error tak terduga pada {slug}")
 
                 await asyncio.sleep(2)
 
@@ -485,4 +488,7 @@ async def scrap_articles_stream(payload, token):
         }
 
     except Exception as e:
-        yield log_msg(f"❌ Terjadi kesalahan Fatal: {e}", status="error")
+        print(f"Kesalahan tidak terduga saat scraping artikel: {e}")
+        yield log_msg(
+            "❌ Kesalahan tidak terduga saat scraping artikel", status="error"
+        )

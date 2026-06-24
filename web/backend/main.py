@@ -282,7 +282,10 @@ async def get_data_articles(
         }
 
     except Exception as e:
-        return {"status_code": 500, "status": "error", "message": str(e)}
+        print(f"Kesalah tidak terduga saat menarik data artikel: {e}")
+        raise HTTPException(
+            status_code=500, detail="Kesalahan tidak terduga saat menarik data artikel"
+        )
 
 
 # Data keseluruhan
@@ -294,83 +297,92 @@ def get_data_stats(
     start_time = time.perf_counter()
     print("== Mengambil Statistik Dashboard dari PostgreSQL ==")
 
-    # == DATA SCRAP ==
-    # Total semua data yang pernah ditarik slug-nya
-    total_data_list = db.query(Article).count()
+    try:
+        # == DATA SCRAP ==
+        # Total semua data yang pernah ditarik slug-nya
+        total_data_list = db.query(Article).count()
 
-    # Total data yang sudah punya konten (statusnya BUKAN slug_only)
-    total_data_content = db.query(Article).filter(Article.status != "slug_only").count()
-
-    # Total data di ChromaDB. Alih-alih memanggil ChromaDB yang memakan waktu,
-    # kita baca dari status sinkronisasi Postgres!
-    total_data_db = (
-        db.query(Article)
-        .filter(
-            Article.status.in_(
-                ["vectorized", "clustered", "outlier_cluster", "generated"]
-            )
+        # Total data yang sudah punya konten (statusnya BUKAN slug_only)
+        total_data_content = (
+            db.query(Article).filter(Article.status != "slug_only").count()
         )
-        .count()
-    )
 
-    # == DATA CLUSTER / TOPIC ==
-    # Hitung jumlah topik unik (distinct) yang tidak kosong
-    total_data_topic = (
-        db.query(Article.cluster_topic)
-        .filter(Article.cluster_topic.isnot(None))
-        .distinct()
-        .count()
-    )
+        # Total data di ChromaDB. Alih-alih memanggil ChromaDB yang memakan waktu,
+        # kita baca dari status sinkronisasi Postgres!
+        total_data_db = (
+            db.query(Article)
+            .filter(
+                Article.status.in_(
+                    ["vectorized", "clustered", "outlier_cluster", "generated"]
+                )
+            )
+            .count()
+        )
 
-    # Hitung jumlah topik unik (distinct) yang berstatus direkomendasikan
-    total_data_rec_topic = (
-        db.query(Article.cluster_topic)
-        .filter(Article.is_recommended)
-        .distinct()
-        .count()
-    )
+        # == DATA CLUSTER / TOPIC ==
+        # Hitung jumlah topik unik (distinct) yang tidak kosong
+        total_data_topic = (
+            db.query(Article.cluster_topic)
+            .filter(Article.cluster_topic.isnot(None))
+            .distinct()
+            .count()
+        )
 
-    # Hitung jumlah article yang berstatus "clustered"
-    total_data_article_clustered = (
-        db.query(Article).filter(Article.status == "clustered").count()
-    )
+        # Hitung jumlah topik unik (distinct) yang berstatus direkomendasikan
+        total_data_rec_topic = (
+            db.query(Article.cluster_topic)
+            .filter(Article.is_recommended)
+            .distinct()
+            .count()
+        )
 
-    # Hitung jumlah article yang berstatus "outlier_cluster"
-    total_data_article_outlier = (
-        db.query(Article).filter(Article.status == "outlier_cluster").count()
-    )
+        # Hitung jumlah article yang berstatus "clustered"
+        total_data_article_clustered = (
+            db.query(Article).filter(Article.status == "clustered").count()
+        )
 
-    # == DATA GENERATE == Asumsi: jika ada artikel yang sudah di-generate AI,
-    # statusnya berubah menjadi 'generated'
-    total_data_generate = (
-        db.query(Article).filter(Article.status == "generated").count()
-    )
+        # Hitung jumlah article yang berstatus "outlier_cluster"
+        total_data_article_outlier = (
+            db.query(Article).filter(Article.status == "outlier_cluster").count()
+        )
 
-    end_time = time.perf_counter()
-    exec_time_sec = str(round(end_time - start_time, 2)) + "s"
+        # == DATA GENERATE == Asumsi: jika ada artikel yang sudah di-generate AI,
+        # statusnya berubah menjadi 'generated'
+        total_data_generate = (
+            db.query(Article).filter(Article.status == "generated").count()
+        )
 
-    return {
-        "status_code": 200,
-        "status": "success",
-        "message": "Data statistik keseluruhan berhasil diambil secara instan",
-        "exec_time": exec_time_sec,
-        "data": {
-            "scrap": {
-                "total_data_list": total_data_list,
-                "total_data_content": total_data_content,
-                "total_data_db": total_data_db,
+        end_time = time.perf_counter()
+        exec_time_sec = str(round(end_time - start_time, 2)) + "s"
+
+        return {
+            "status_code": 200,
+            "status": "success",
+            "message": "Data statistik keseluruhan berhasil diambil secara instan",
+            "exec_time": exec_time_sec,
+            "data": {
+                "scrap": {
+                    "total_data_list": total_data_list,
+                    "total_data_content": total_data_content,
+                    "total_data_db": total_data_db,
+                },
+                "cluster": {
+                    "total_data_article_clustered": total_data_article_clustered,
+                    "total_data_article_outlier": total_data_article_outlier,
+                    "total_data_topic": total_data_topic,
+                    "total_data_keyword": total_data_topic * 4,
+                    "total_data_rec_topic": total_data_rec_topic,
+                    "total_data_rec_keyword": total_data_rec_topic * 4,
+                },
+                "generate": {"total_data_generate": total_data_generate},
             },
-            "cluster": {
-                "total_data_article_clustered": total_data_article_clustered,
-                "total_data_article_outlier": total_data_article_outlier,
-                "total_data_topic": total_data_topic,
-                "total_data_keyword": total_data_topic * 4,
-                "total_data_rec_topic": total_data_rec_topic,
-                "total_data_rec_keyword": total_data_rec_topic * 4,
-            },
-            "generate": {"total_data_generate": total_data_generate},
-        },
-    }
+        }
+    except Exception as e:
+        print(f"Kesalahan tidak terduga saat mengambil data stats artikel: ${e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Kesalahan tidak terduga saat mengambil data stats artikel",
+        )
 
 
 # Data analytics
@@ -383,56 +395,63 @@ def get_data_analytics(
     start_time = time.perf_counter()
     # print(token)
 
-    # == Query Pie Chart ==
-    # Mengelompokkan berdasarkan kolom 'status'
-    print("Mengelompokkan berdasarkan kolom 'status'")
-    status_group = (
-        db.query(Article.status, func.count(Article.id).label("total"))
-        .group_by(Article.status)
-        .all()
-    )
-
-    # Format untuk frontend
-    pie_data = [
-        {
-            # Terpaksa pakai key name karena pie chart, hanya bisa membaca
-            # dengan key ini
-            "name": status,
-            "value": total,
-        }
-        for status, total in status_group
-    ]
-
-    # == Query Bar Chart
-    # Mengelompokkan berdasarkan 'cluster_topic', diurutkan dari terbanyak
-    print("Mengelompokkan berdasarkan kolom 'status'")
-    base_query = (
-        db.query(Article.cluster_topic, func.count(Article.id).label("total"))
-        .filter(
-            Article.cluster_topic.isnot(None),
-            Article.status == "clustered",
-            not_(Article.cluster_topic.ilike("%outlier%")),
+    try:
+        # == Query Pie Chart ==
+        # Mengelompokkan berdasarkan kolom 'status'
+        print("Mengelompokkan berdasarkan kolom 'status'")
+        status_group = (
+            db.query(Article.status, func.count(Article.id).label("total"))
+            .group_by(Article.status)
+            .all()
         )
-        .group_by(Article.cluster_topic)
-    )
-    if topic_sort == "asc":
-        topic_group = base_query.order_by(asc("total")).limit(10).all()
-    else:
-        topic_group = base_query.order_by(desc("total")).limit(10).all()
 
-    # Format untuk frontend
-    bar_data = [{"topic": topic, "count": total} for topic, total in topic_group]
+        # Format untuk frontend
+        pie_data = [
+            {
+                # Terpaksa pakai key name karena pie chart, hanya bisa membaca
+                # dengan key ini
+                "name": status,
+                "value": total,
+            }
+            for status, total in status_group
+        ]
 
-    end_time = time.perf_counter()
-    exec_time_sec = str(round(end_time - start_time, 2)) + "s"
+        # == Query Bar Chart
+        # Mengelompokkan berdasarkan 'cluster_topic', diurutkan dari terbanyak
+        print("Mengelompokkan berdasarkan kolom 'status'")
+        base_query = (
+            db.query(Article.cluster_topic, func.count(Article.id).label("total"))
+            .filter(
+                Article.cluster_topic.isnot(None),
+                Article.status == "clustered",
+                not_(Article.cluster_topic.ilike("%outlier%")),
+            )
+            .group_by(Article.cluster_topic)
+        )
+        if topic_sort == "asc":
+            topic_group = base_query.order_by(asc("total")).limit(10).all()
+        else:
+            topic_group = base_query.order_by(desc("total")).limit(10).all()
 
-    return {
-        "status_code": 200,
-        "status": "success",
-        "message": "data analytics pie dan bar char berhasil diambil",
-        "exec_time": exec_time_sec,
-        "data": {"pie_data": pie_data, "bar_data": bar_data},
-    }
+        # Format untuk frontend
+        bar_data = [{"topic": topic, "count": total} for topic, total in topic_group]
+
+        end_time = time.perf_counter()
+        exec_time_sec = str(round(end_time - start_time, 2)) + "s"
+
+        return {
+            "status_code": 200,
+            "status": "success",
+            "message": "data analytics pie dan bar char berhasil diambil",
+            "exec_time": exec_time_sec,
+            "data": {"pie_data": pie_data, "bar_data": bar_data},
+        }
+    except Exception as e:
+        print(f"Kesalahan tidak terduga saat mengambil data analytics artikel: ${e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Kesalahan tidak terduga saat mengambil data analytics artikel",
+        )
 
 
 # Data Cluster
@@ -443,70 +462,81 @@ async def get_data_cluster(
 ):
     start_time = time.perf_counter()
 
-    # Mengambil data clustered yang diperlukan
-    articles = (
-        db.query(
-            Article.cluster_topic, Article.is_recommended, Article.cluster_keywords
+    try:
+        # Mengambil data clustered yang diperlukan
+        articles = (
+            db.query(
+                Article.cluster_topic, Article.is_recommended, Article.cluster_keywords
+            )
+            .filter(Article.status == "clustered", Article.cluster_topic.isnot(None))
+            .all()
         )
-        .filter(Article.status == "clustered", Article.cluster_topic.isnot(None))
-        .all()
-    )
 
-    topic_map = {}
-    # unique_keywords = set()
+        topic_map = {}
+        # unique_keywords = set()
 
-    # 2. Proses agregasi
-    for topic, is_rec, keywords in articles:
-        if topic not in topic_map:
-            topic_map[topic] = {"is_rec": is_rec, "keywords": set(), "article_count": 0}
-        elif is_rec:
-            topic_map[topic]["is_rec"] = True
+        # 2. Proses agregasi
+        for topic, is_rec, keywords in articles:
+            if topic not in topic_map:
+                topic_map[topic] = {
+                    "is_rec": is_rec,
+                    "keywords": set(),
+                    "article_count": 0,
+                }
+            elif is_rec:
+                topic_map[topic]["is_rec"] = True
 
-        # Penambahan article_count untuk suatu topik
-        topic_map[topic]["article_count"] += 1
+            # Penambahan article_count untuk suatu topik
+            topic_map[topic]["article_count"] += 1
 
-        if keywords:
-            kw_list = []
-            if isinstance(keywords, list):
-                kw_list = keywords
-            elif isinstance(keywords, str):
-                kw_list = [
-                    k.strip()
-                    for k in keywords.replace("{", "")
-                    .replace("}", "")
-                    .replace('"', "")
-                    .replace("'", "")
-                    .split(",")
-                ]
+            if keywords:
+                kw_list = []
+                if isinstance(keywords, list):
+                    kw_list = keywords
+                elif isinstance(keywords, str):
+                    kw_list = [
+                        k.strip()
+                        for k in keywords.replace("{", "")
+                        .replace("}", "")
+                        .replace('"', "")
+                        .replace("'", "")
+                        .split(",")
+                    ]
 
-            for kw in kw_list:
-                if kw:
-                    topic_map[topic]["keywords"].add(kw)
+                for kw in kw_list:
+                    if kw:
+                        topic_map[topic]["keywords"].add(kw)
 
-    # 3. Format output sesuai kebutuhan state React
-    formatted_topics = [
-        {
-            "id": f"topic{i}",
-            "name": name,
-            "color": "green" if data["is_rec"] else "default",
-            "keywords": list(data["keywords"])[:8],
-            "article_count": data["article_count"],
+        # 3. Format output sesuai kebutuhan state React
+        formatted_topics = [
+            {
+                "id": f"topic{i}",
+                "name": name,
+                "color": "green" if data["is_rec"] else "default",
+                "keywords": list(data["keywords"])[:8],
+                "article_count": data["article_count"],
+            }
+            for i, (name, data) in enumerate(topic_map.items())
+        ]
+
+        # print(f"formatted_topics: \n{formatted_topics}")
+
+        end_time = time.perf_counter()
+        exec_time_sec = str(round(end_time - start_time)) + "s"
+
+        return {
+            "status_code": 200,
+            "status": "success",
+            "message": "Data cluster/topik berhasil diambil",
+            "exec_time": exec_time_sec,
+            "data": {"topics": formatted_topics},
         }
-        for i, (name, data) in enumerate(topic_map.items())
-    ]
-
-    # print(f"formatted_topics: \n{formatted_topics}")
-
-    end_time = time.perf_counter()
-    exec_time_sec = str(round(end_time - start_time)) + "s"
-
-    return {
-        "status_code": 200,
-        "status": "success",
-        "message": "Data cluster/topik berhasil diambil",
-        "exec_time": exec_time_sec,
-        "data": {"topics": formatted_topics},
-    }
+    except Exception as e:
+        print(f"Kesalahan tidak terduga saat mengambil data cluster: ${e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Kesalahan tidak terduga saat mengambil data cluster",
+        )
 
 
 # Data Clusterable Article
@@ -516,18 +546,39 @@ def get_clusterable_count(
     db: Session = Depends(get_db),
     token: str = Depends(get_mydigilearn_token),
 ):
-    query = db.query(Article.id).filter(
-        Article.status.in_(["vectorized", "clustered", "outlier_cluster"])
-    )
+    start_time = time.perf_counter()
 
-    if days_ago > 0:
-        target_date = datetime.now(timezone.utc) - timedelta(days=days_ago)
-        query = query.filter(Article.published_at >= target_date)
+    try:
+        query = db.query(Article.id).filter(
+            Article.status.in_(["vectorized", "clustered", "outlier_cluster"])
+        )
 
-    # Hanya menghitung jumlah baris, sangat cepat!
-    total_count = query.count()
+        if days_ago > 0:
+            target_date = datetime.now(timezone.utc) - timedelta(days=days_ago)
+            query = query.filter(Article.published_at >= target_date)
 
-    return {"status": "success", "count": total_count}
+        # Hanya menghitung jumlah baris, sangat cepat!
+        total_count = query.count()
+
+        end_time = time.perf_counter
+        exec_time_sec = str(round(end_time - start_time)) + "s"
+
+        return {
+            "status_code": 200,
+            "status": "success",
+            "count": total_count,
+            "exec_time": exec_time_sec,
+        }
+    except Exception as e:
+        print(
+            f"Kesalahan tidak terduga saat mengambil "
+            f"data clusterable count artikel: ${e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Kesalahan tidak terduga saat "
+            "mengambil data clusterable count artikel",
+        )
 
 
 @app.get("/api/v1/data/export")
@@ -567,7 +618,11 @@ def export_database(
             },
         )
     except Exception as e:
-        return {"status_code": 500, "message": f"Gagal melakukan export: {e}"}
+        print(f"Kesalahan tidak terduga saat melakukan export data: ${e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Kesalahan tidak terduga saat melakukan export data",
+        )
 
 
 @app.post("/api/v1/data/import")
@@ -613,42 +668,47 @@ async def import_database(
             "exec_time": exec_time_sec,
         }
     except json.JSONDecodeError:
-        return {
-            "status_code": 400,
-            "status": "error",
-            "message": "File JSON korup atau rusak.",
-        }
+        print("File JSON korup atau rusak.")
+        raise HTTPException(
+            status_code=400,
+            detail="File JSON korup atau rusak.",
+        )
     except Exception as e:
         db.rollback()
-        return {
-            "status_code": 500,
-            "status": "error",
-            "message": f"Gagal melakukan import: {str(e)}",
-        }
+        print(f"Kesalahan tidak terduga saat melakukan import data: ${e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Kesalahan tidak terduga saat melakukan import data",
+        )
 
 
-@app.delete("/api/v1/data/reset")
-def reset_database(
-    db: Session = Depends(get_db), token: str = Depends(get_mydigilearn_token)
-):
-    print("Mencoba reset db")
+# @app.delete("/api/v1/data/reset")
+# def reset_database(
+#     db: Session = Depends(get_db), token: str = Depends(get_mydigilearn_token)
+# ):
+#     start_time = time.perf_counter
+#     print("Mencoba reset db")
 
-    try:
-        db.execute(text("TRUNCATE TABLE articles RESTART IDENTITY"))
-        db.commit()
+#     try:
+#         db.execute(text("TRUNCATE TABLE articles RESTART IDENTITY"))
+#         db.commit()
 
-        return {
-            "status_code": 200,
-            "status": "success",
-            "message": "Tabel articles berhasil di-reset",
-        }
-    except Exception as e:
-        db.rollback()
-        return {
-            "status_code": 500,
-            "status": "error",
-            "message": f"Gagal melakukan reset database: {str(e)}",
-        }
+#         end_time = time.perf_counter
+#         exec_time_sec = str(round(end_time - start_time)) + "s"
+
+#         return {
+#             "status_code": 200,
+#             "status": "success",
+#             "message": "Tabel articles berhasil di-reset",
+#             "exec_time": exec_time_sec
+#         }
+#     except Exception as e:
+#         db.rollback()
+#         print(f"Kesalahan tidak terduga saat melakukan reset data: ${e}")
+#         raise HTTPException(
+#             status_code=500,
+#             detail="Kesalahan tidak terduga saat melakukan reset data",
+#         )
 
 
 # Scraping
