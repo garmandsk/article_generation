@@ -29,7 +29,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from jose import jwt
-from sqlalchemy import asc, desc, func, not_, or_, text
+from sqlalchemy import asc, desc, func, not_, or_
 from sqlalchemy.orm import Session
 
 from config import settings
@@ -682,33 +682,37 @@ async def import_database(
         )
 
 
-# @app.delete("/api/v1/data/reset")
-# def reset_database(
-#     db: Session = Depends(get_db), token: str = Depends(get_mydigilearn_token)
-# ):
-#     start_time = time.perf_counter
-#     print("Mencoba reset db")
+@app.delete("/api/v1/data/reset")
+def reset_database(
+    db: Session = Depends(get_db), token: str = Depends(get_mydigilearn_token)
+):
+    # start_time = time.perf_counter
+    # print("Mencoba reset db")
 
-#     try:
-#         db.execute(text("TRUNCATE TABLE articles RESTART IDENTITY"))
-#         db.commit()
+    # try:
+    #     db.execute(text("TRUNCATE TABLE articles RESTART IDENTITY"))
+    #     db.commit()
 
-#         end_time = time.perf_counter
-#         exec_time_sec = str(round(end_time - start_time)) + "s"
+    #     end_time = time.perf_counter
+    #     exec_time_sec = str(round(end_time - start_time)) + "s"
 
-#         return {
-#             "status_code": 200,
-#             "status": "success",
-#             "message": "Tabel articles berhasil di-reset",
-#             "exec_time": exec_time_sec
-#         }
-#     except Exception as e:
-#         db.rollback()
-#         print(f"Kesalahan tidak terduga saat melakukan reset data: ${e}")
-#         raise HTTPException(
-#             status_code=500,
-#             detail="Kesalahan tidak terduga saat melakukan reset data",
-#         )
+    #     return {
+    #         "status_code": 200,
+    #         "status": "success",
+    #         "message": "Tabel articles berhasil di-reset",
+    #         "exec_time": exec_time_sec
+    #     }
+    # except Exception as e:
+    #     db.rollback()
+    #     print(f"Kesalahan tidak terduga saat melakukan reset data: ${e}")
+    #     raise HTTPException(
+    #         status_code=500,
+    #         detail="Kesalahan tidak terduga saat melakukan reset data",
+    #     )
+    raise HTTPException(
+        status_code=403,
+        detail="AKSES DITOLAK: Demi keamanan, reset database dikunci dari aplikasi. Silakan lakukan eksekusi manual langsung melalui Dashboard Supabase (SQL Editor).",
+    )
 
 
 # Scraping

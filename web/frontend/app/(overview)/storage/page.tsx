@@ -12,7 +12,9 @@ import {
   Download,
   UploadCloud,
   Loader2,
-  Trash2
+  Trash2,
+  Lock,
+  ShieldAlert
 } from "lucide-react";
 import { EditableTitleBox } from "@/components/editableTitleBox";
 import { EditableContentBox } from "@/components/EditableContentBox";
@@ -86,7 +88,7 @@ export default function StoragePage() {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         }
       });
 
@@ -159,7 +161,7 @@ export default function StoragePage() {
         body: formData,
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         }
       });
 
@@ -180,33 +182,33 @@ export default function StoragePage() {
   // Reset
   const handleResetClick = () => setIsResetConfirmOpen(true);
 
-  const handleResetExecute = useCallback(async () => {
-    setIsResetting(true);
+  // const handleResetExecute = useCallback(async () => {
+  //   setIsResetting(true);
 
-    try {
-      const token = localStorage.getItem("mydigilearn_token");
-      const resetAPI = `${API_V1}/data/reset`;
-      const response = await fetch(resetAPI, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        }
-      });
+  //   try {
+  //     const token = localStorage.getItem("mydigilearn_token");
+  //     const resetAPI = `${API_V1}/data/reset`;
+  //     const response = await fetch(resetAPI, {
+  //       method: "DELETE",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         "Authorization": `Bearer ${token}`
+  //       }
+  //     });
 
-      const result = await response.json();
+  //     const result = await response.json();
 
-      if (result.status_code != 200) throw new Error(result.message);
+  //     if (result.status_code != 200) throw new Error(result.message);
 
-      await fetchArticles();
+  //     await fetchArticles();
 
-      sysLog("success", result.message, result.exec_time || "0");
-    } catch (error) {
-      sysLog("error", `Gagal melakukan reset: ${error}`, "0");
-    } finally {
-      setIsResetting(false);
-    }
-  }, [fetchArticles]);
+  //     sysLog("success", result.message, result.exec_time || "0");
+  //   } catch (error) {
+  //     sysLog("error", `Gagal melakukan reset: ${error}`, "0");
+  //   } finally {
+  //     setIsResetting(false);
+  //   }
+  // }, [fetchArticles]);
 
   useEffect(() => {
     const escapeCascadingRender = setTimeout(() => {
@@ -517,18 +519,28 @@ export default function StoragePage() {
       <ConfirmationModal
         isOpen={isResetConfirmOpen}
         onClose={() => setIsResetConfirmOpen(false)}
-        onConfirm={handleResetExecute}
-        title="Reset Database"
-        message="Apakah Anda yakin ingin me-reset seluruh data dalam database ?"
-        confirmText="Ya, Eksekusi Reset Database"
-        icon={<Trash2 size={24} />}
+        // Ubah fungsi onConfirm agar hanya menutup modal (tidak mengeksekusi apapun)
+        onConfirm={() => setIsResetConfirmOpen(false)}
+        title="Reset Database Terkunci"
+        message="Fitur reset database dinonaktifkan dari antarmuka web demi mencegah penghapusan data produksi yang tidak disengaja."
+        confirmText="Saya Mengerti"
+        icon={<Lock size={24} className="text-red-500" />} // Ganti Trash2 menjadi Lock
       >
-        {/* <div className="bg-[#02040F] border border-slate-800 rounded-xl p-4 flex justify-between items-center mt-2">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-            Total Artikel
-          </span>
-          <span className="text-sm font-bold text-[#E59500]">{articles.length} Data</span>
-        </div> */}
+        {/* Kotak Instruksi Manual Supabase */}
+        <div className="bg-[#840032]/10 border border-[#840032]/30 rounded-xl p-4 flex items-start gap-3 mt-2">
+          <ShieldAlert size={20} className="text-red-400 shrink-0 mt-0.5" />
+          <div className="text-xs text-red-200/90 leading-relaxed">
+            <strong className="text-red-400 font-bold tracking-wider block mb-1">
+              AKSES ADMINISTRATOR DIBUTUHKAN
+            </strong>
+            Untuk mengosongkan seluruh data, silakan login ke Dasbor Supabase Anda dan jalankan
+            perintah{" "}
+            <span className="font-mono text-red-300 bg-red-950/50 px-1 py-0.5 rounded">
+              TRUNCATE
+            </span>{" "}
+            secara manual di menu SQL Editor.
+          </div>
+        </div>
       </ConfirmationModal>
     </div>
   );
