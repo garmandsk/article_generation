@@ -19,6 +19,7 @@ const jetBrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://article-generation-omega.vercel.app"),
   title: {
     // %s akan diganti dengan title spesifik dari setiap halaman
     template: "%s | Article Generation & Clustering", 
