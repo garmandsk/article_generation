@@ -711,7 +711,9 @@ def reset_database(
     #     )
     raise HTTPException(
         status_code=403,
-        detail="AKSES DITOLAK: Demi keamanan, reset database dikunci dari aplikasi. Silakan lakukan eksekusi manual langsung melalui Dashboard Supabase (SQL Editor).",
+        detail="AKSES DITOLAK: Demi keamanan, reset database dikunci dari aplikasi. "
+        "Silakan lakukan eksekusi manual langsung "
+        "melalui Dashboard Supabase (SQL Editor).",
     )
 
 
