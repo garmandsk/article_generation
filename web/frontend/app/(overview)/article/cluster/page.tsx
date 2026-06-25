@@ -548,7 +548,7 @@ export default function ClusterPage() {
           </div>
 
           {/* Kondisi 1: Sedang Loading */}
-          {isLoading && <TerminalMonitor progress={progress} logs={logs} />}
+          {isLoading && <TerminalMonitor action="cluster" progress={progress} logs={logs} />}
 
           {/* Kondisi 2: State Awal (Belum ada aksi) */}
           {!isLoading && !clusterResult && (

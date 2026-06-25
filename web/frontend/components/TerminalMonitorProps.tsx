@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
-import { Pickaxe } from "lucide-react";
+import { Network, Pickaxe, Sparkles } from "lucide-react";
 
 interface TerminalMonitorProps {
+  action: string;
   progress: number;
   logs: string[];
 }
 
-export default function TerminalMonitor({ progress, logs }: TerminalMonitorProps) {
+export default function TerminalMonitor({ action, progress, logs }: TerminalMonitorProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -20,10 +21,24 @@ export default function TerminalMonitor({ progress, logs }: TerminalMonitorProps
       {/* Animasi Spinner */}
       <div className="relative">
         <div className="w-16 h-16 border-4 border-slate-800 border-t-[#E59500] rounded-full animate-spin"></div>
-        <Pickaxe
-          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#E59500]"
-          size={24}
-        />
+        {action === "scrap" && (
+          <Pickaxe
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#E59500]"
+            size={24}
+          />
+        )}
+        {action === "cluster" && (
+          <Network
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#E59500]"
+            size={24}
+          />
+        )}
+        {action === "generate" && (
+          <Sparkles
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#E59500]"
+            size={24}
+          />
+        )}
       </div>
 
       {/* Progress Bar Dinamis */}
@@ -67,7 +82,6 @@ export default function TerminalMonitor({ progress, logs }: TerminalMonitorProps
 
         <div ref={bottomRef} className="h-1" />
       </div>
-
     </div>
   );
 }
