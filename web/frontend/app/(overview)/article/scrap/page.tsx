@@ -216,7 +216,7 @@ export default function ScrapPage() {
 
           {/* Kondisi 1: Sedang Loading */}
           {isLoading && 
-            <TerminalMonitor progress={progress} logs={logs} />
+            <TerminalMonitor action="scrap" progress={progress} logs={logs} />
           }
 
           {/* Kondisi 2: State Awal (Belum ada aksi) */}

@@ -708,7 +708,7 @@ export default function GeneratePage() {
           </div>
 
           {/* Kondisi 1: Sedang Loading */}
-          {isLoading && <TerminalMonitor progress={progress} logs={logs} />}
+          {isLoading && <TerminalMonitor action="generate" progress={progress} logs={logs} />}
 
           {/* Kondisi 2: State Awal (Belum ada aksi) */}
           {!isLoading && !generateResult && (
