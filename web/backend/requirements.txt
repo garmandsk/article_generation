@@ -21,3 +21,4 @@ umap_learn==0.5.12
 psycopg2-binary==2.9.9
 google-genai>=0.1.2
 pgvector==0.2.5
+numpy==2.4.1
