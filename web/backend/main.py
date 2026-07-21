@@ -560,7 +560,7 @@ def get_clusterable_count(
         # Hanya menghitung jumlah baris, sangat cepat!
         total_count = query.count()
 
-        end_time = time.perf_counter
+        end_time = time.perf_counter()
         exec_time_sec = str(round(end_time - start_time)) + "s"
 
         return {
