@@ -132,7 +132,7 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
     return {"status_code": 200, "status": "ok", "message": "Health Ok"}
 
