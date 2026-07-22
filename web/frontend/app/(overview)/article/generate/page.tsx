@@ -62,10 +62,10 @@ export default function GeneratePage() {
     model_api_key: ""
   });
   const [topicLimit, setTopicLimit] = useState<number | "all">(10);
-  const [topicSort, setTopicSort] = useState<TopicSortOption>("rec");
+  const [topicSort, setTopicSort] = useState<TopicSortOption>("count_asc");
   const [topicPool, setTopicPool] = useState<TopicData[]>([]);
 
-  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false); // <-- Tambahkan ini
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [showApiKeyModel, setShowApiKeyModel] = useState(false);
 
   // State Kontrol Layar
@@ -81,7 +81,6 @@ export default function GeneratePage() {
 
   const { isLoading, logs, progress, executeStream } = usePipelineStream();
 
-  // Daftar model utama
   const PREDEFINED_MODELS = [
     { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
     { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-lite" },
@@ -90,16 +89,11 @@ export default function GeneratePage() {
   ];
 
   // ================= LOGIKA KETERGANTUNGAN DATA =================
-  // A. Memisahkan Topik (Terpilih vs Daftar Tunggu)
   const suggestedTopics = useMemo(() => {
-    // Ambil sesuai batas filter
     let filtered = topicPool.filter((t) => !formData.topics.includes(t.name));
 
-    // Sorting
     if (topicSort === "rec") {
       filtered = filtered.filter((t) => t.color === "green");
-
-      // Urutkan berdasarkan jumlah terdikit
       filtered.sort((a, b) => (a.article_count || 0) - (b.article_count || 0));
     } else {
       filtered.sort((a, b) => {
@@ -122,7 +116,6 @@ export default function GeneratePage() {
     return filtered;
   }, [topicLimit, topicSort, topicPool, formData.topics]);
 
-  // B. Mengumpulkan Keyword Daftar Tunggu (Hanya dari Topik yang TERPILIH)
   const suggestedKeywords = useMemo(() => {
     const activeTopics = topicPool.filter((t) => formData.topics.includes(t.name));
     const keywordSet = new Set<string>();
@@ -131,12 +124,10 @@ export default function GeneratePage() {
       t.keywords?.forEach((kw) => keywordSet.add(kw));
     });
 
-    // Jangan tampilkan keyword di daftar tunggu jika sudah dipilih
     return Array.from(keywordSet).filter((kw) => !formData.keywords.includes(kw));
   }, [topicPool, formData.topics, formData.keywords]);
 
   // ================= HANDLERS INTERAKSI =================
-  // Handler universal untuk input teks biasa (Prompt, API Key)
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -149,30 +140,20 @@ export default function GeneratePage() {
       let newKeywords = [];
 
       if (isCurrentlySelected) {
-        // Jika topik dihapus
-
         newTopics = prev.topics.filter((t) => t !== name);
-
-        // Cari daftar keyword dari topik yang baru saja dihapus
         const topicToRemoveData = topicPool.find((t) => t.name === name);
         const keywordsToRemove = topicToRemoveData?.keywords || [];
 
-        /// Kumpulkan semua keyword dari topik-topik sisanya (yang masih aktif)
         const remainingKeywordsSet = new Set<string>();
         newTopics.forEach((topicName) => {
           const tData = topicPool.find((t) => t.name === topicName);
           tData?.keywords?.forEach((kw) => remainingKeywordsSet.add(kw));
         });
 
-        // Filter keyword yang ada di kotak saat ini:
-        // - Pertahankan jika BUKAN milik topik yang dihapus.
-        // - ATAU pertahankan jika dia milik topik yang dihapus, TAPI kebetulan masih dipakai topik lain.
         newKeywords = prev.keywords.filter(
           (kw) => !keywordsToRemove.includes(kw) || remainingKeywordsSet.has(kw)
         );
       } else {
-        // Jika topik ditambah
-
         const selectedTopicData = topicPool.find((t) => t.name === name);
         const autoKeywords = selectedTopicData?.keywords || [];
 
@@ -205,18 +186,17 @@ export default function GeneratePage() {
     });
   };
 
-  // Handler Input Manual
-  const handleManualAdd = (
-    e: React.KeyboardEvent<HTMLInputElement>,
+  // 🔥 DIPERBARUI: Fungsi universal penambah manual (bisa lewat Enter atau Klik Tombol Plus)
+  const addItemManual = (
     value: string,
     setValue: React.Dispatch<React.SetStateAction<string>>,
     toggleFn: (name: string) => void,
     selectedList: string[]
   ) => {
-    if (e.key === "Enter" && value.trim()) {
-      e.preventDefault();
-      if (!selectedList.includes(value.trim())) {
-        toggleFn(value.trim());
+    const trimmed = value.trim();
+    if (trimmed) {
+      if (!selectedList.includes(trimmed)) {
+        toggleFn(trimmed);
       }
       setValue("");
     }
@@ -229,18 +209,15 @@ export default function GeneratePage() {
     }));
   };
 
-  // Helper Warna
   const getColorClass = (name: string, type: "topic" | "keyword") => {
     if (type === "keyword")
       return "bg-[#E59500]/20 text-[#E59500] border-[#E59500]/40 hover:bg-[#E59500]/30";
 
-    // Cek apakah topik ini dari database dan apa warnanya
     const dbTopic = topicPool.find((t) => t.name === name);
-    console.log("dbTopic", dbTopic);
     if (dbTopic?.color === "green")
       return "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30";
 
-    return "bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30"; // Manual / Default Topik
+    return "bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30";
   };
 
   // ================= EKSEKUSI GENERATE =================
@@ -263,8 +240,6 @@ export default function GeneratePage() {
       });
 
       if (result.status_code != 200) throw new Error(result.message || result.detail);
-
-      // console.log("result", result);
 
       setGenerateResult(result);
       sysLog("success", result.message, result.exec_time || "0");
@@ -347,15 +322,9 @@ export default function GeneratePage() {
                   Selected Topics
                 </label>
 
-                {/* 1. Selected Box */}
+                {/* 1. Selected Box & Input Manual */}
                 <div className="flex flex-wrap gap-2 p-3 bg-[#02040F] border border-slate-700/50 rounded-lg min-h-14 transition-all focus-within:border-blue-500/50">
-                  {formData.topics.length === 0 && !topicInputValue && (
-                    <span className="text-sm text-slate-600 my-auto italic">
-                      Pilih dari daftar di bawah...
-                    </span>
-                  )}
                   {formData.topics.map((name) => {
-                    // Cari data asli untuk mengambil count-nya
                     const topicData = topicPool.find((t) => t.name === name);
                     const count = topicData?.article_count || 0;
 
@@ -366,39 +335,47 @@ export default function GeneratePage() {
                         className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border transition-all active:scale-95 group ${getColorClass(name, "topic")}`}
                       >
                         {name}
-                        {/* 🔥 BADGE ANGKA (SELECTED) */}
-                        <span className="text-[9px] opacity-60">({count})</span>
+                        {count > 0 && <span className="text-[9px] opacity-60">({count})</span>}
                         <X size={12} className="opacity-60 group-hover:opacity-100" />
                       </button>
                     );
                   })}
-                  <input
-                    type="text"
-                    value={topicInputValue}
-                    onChange={(e) => setTopicInputValue(e.target.value)}
-                    onKeyDown={(e) =>
-                      handleManualAdd(
-                        e,
-                        topicInputValue,
-                        setTopicInputValue,
-                        toggleTopic,
-                        formData.topics
-                      )
-                    }
-                    placeholder={formData.topics.length === 0 ? "" : "Ketik manual..."}
-                    className="flex-1 bg-transparent text-sm text-slate-200 outline-none min-w-30"
-                  />
+                  
+                  {/* 🔥 DIPERBARUI: Input Teks Manual Topik dengan Tombol Tambah */}
+                  <div className="flex-1 flex items-center min-w-37.5 gap-1">
+                    <input
+                      type="text"
+                      value={topicInputValue}
+                      onChange={(e) => setTopicInputValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addItemManual(topicInputValue, setTopicInputValue, toggleTopic, formData.topics);
+                        }
+                      }}
+                      placeholder={formData.topics.length === 0 ? "Ketik topik sendiri di sini..." : "+ Ketik topik..."}
+                      className="w-full bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-600 placeholder:italic"
+                    />
+                    {topicInputValue.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => addItemManual(topicInputValue, setTopicInputValue, toggleTopic, formData.topics)}
+                        className="p-1.5 text-xs bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded-md transition-colors"
+                        title="Tambah Topik"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* 2. Waiting List Box (Suggestion) */}
                 <div className="p-3 bg-[#02040F]/50 border border-slate-800 border-dashed rounded-lg">
-                  {/* FILTER & SORT */}
                   <div className="flex items-center justify-between mb-3 border-b border-slate-800/50 pb-2">
                     <span className="text-[10px] text-slate-500 font-medium uppercase">
-                      List of Topics
+                      List of Topics (Suggestions)
                     </span>
                     <div className="flex items-center gap-2">
-                      {/* Sort Dropdown */}
                       <select
                         value={topicSort}
                         onChange={(e) => setTopicSort(e.target.value as TopicSortOption)}
@@ -411,7 +388,6 @@ export default function GeneratePage() {
                         <option value="name_desc">Z - A</option>
                       </select>
 
-                      {/* Limit Dropdown */}
                       <select
                         value={topicLimit}
                         onChange={(e) =>
@@ -445,7 +421,6 @@ export default function GeneratePage() {
                           }`}
                         >
                           <Plus size={12} /> {t.name}
-                          {/* BADGE ANGKA */}
                           <span
                             className={`ml-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${
                               t.color === "green"
@@ -460,7 +435,7 @@ export default function GeneratePage() {
                     </div>
                   ) : (
                     <span className="text-xs text-slate-600 italic mt-2 block">
-                      Semua topik pada filter ini telah dipilih.
+                      Semua topik rekomendasi telah dipilih. Anda tetap bisa mengetik manual di atas.
                     </span>
                   )}
                 </div>
@@ -468,20 +443,13 @@ export default function GeneratePage() {
 
               {/* ============== SECTION KEYWORD ============== */}
               <div className="space-y-3">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between">
-                  <span>Selected Keywords</span>
-                  {formData.topics.length === 0 && (
-                    <span className="text-red-400/80 normal-case italic">*Pilih topik dulu</span>
-                  )}
+                {/* 🔥 DIPERBARUI: Dihapusnya peringatan merah '*Pilih topik dulu' */}
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
+                  Selected Keywords
                 </label>
 
-                {/* Selected Box */}
+                {/* Selected Box & Input Manual */}
                 <div className="flex flex-wrap gap-2 p-3 bg-[#02040F] border border-slate-700/50 rounded-lg min-h-14 transition-all focus-within:border-[#E59500]/50">
-                  {formData.keywords.length === 0 && !keywordInputValue && (
-                    <span className="text-sm text-slate-600 my-auto italic">
-                      Pilih dari daftar di bawah...
-                    </span>
-                  )}
                   {formData.keywords.map((name) => (
                     <button
                       key={`sel-kw-${name}`}
@@ -492,30 +460,39 @@ export default function GeneratePage() {
                       <X size={12} className="opacity-60 group-hover:opacity-100" />
                     </button>
                   ))}
-                  <input
-                    type="text"
-                    value={keywordInputValue}
-                    onChange={(e) => setKeywordInputValue(e.target.value)}
-                    onKeyDown={(e) =>
-                      handleManualAdd(
-                        e,
-                        keywordInputValue,
-                        setKeywordInputValue,
-                        toggleKeyword,
-                        formData.keywords
-                      )
-                    }
-                    placeholder={formData.keywords.length === 0 ? "" : "Ketik manual..."}
-                    className="flex-1 bg-transparent text-sm text-slate-200 outline-none min-w-30"
-                  />
+                  
+                  {/* 🔥 DIPERBARUI: Input Teks Manual Keyword yang Selalu Aktif & Punya Tombol Tambah */}
+                  <div className="flex-1 flex items-center min-w-37.5 gap-1">
+                    <input
+                      type="text"
+                      value={keywordInputValue}
+                      onChange={(e) => setKeywordInputValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addItemManual(keywordInputValue, setKeywordInputValue, toggleKeyword, formData.keywords);
+                        }
+                      }}
+                      placeholder={formData.keywords.length === 0 ? "Ketik kata kunci sendiri di sini..." : "+ Ketik kata kunci..."}
+                      className="w-full bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-600 placeholder:italic"
+                    />
+                    {keywordInputValue.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => addItemManual(keywordInputValue, setKeywordInputValue, toggleKeyword, formData.keywords)}
+                        className="p-1.5 text-xs bg-[#E59500]/20 hover:bg-[#E59500]/40 text-[#E59500] rounded-md transition-colors"
+                        title="Tambah Kata Kunci"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Waiting List Box (Suggestion) */}
-                <div
-                  className={`p-3 bg-[#02040F]/50 border border-slate-800 border-dashed rounded-lg transition-opacity ${formData.topics.length === 0 ? "opacity-30 pointer-events-none" : "opacity-100"}`}
-                >
-                  <span className="text-[10px] text-slate-500 block mb  -2 font-medium uppercase">
-                    List of Keywords (By Topics)
+                <div className="p-3 bg-[#02040F]/50 border border-slate-800 border-dashed rounded-lg transition-opacity">
+                  <span className="text-[10px] text-slate-500 block mb-2 font-medium uppercase">
+                    List of Keywords {formData.topics.length > 0 ? "(Suggested by Topics)" : ""}
                   </span>
                   {suggestedKeywords.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
@@ -532,7 +509,7 @@ export default function GeneratePage() {
                   ) : (
                     <span className="text-xs text-slate-600 italic">
                       {formData.topics.length === 0
-                        ? "Menunggu topik dipilih..."
+                        ? "Pilih atau ketik topik di atas untuk memuat rekomendasi kata kunci otomatis."
                         : "Tidak ada rekomendasi tersisa."}
                     </span>
                   )}
@@ -545,7 +522,6 @@ export default function GeneratePage() {
                   Selected Model
                 </label>
 
-                {/* Custom Combobox Input */}
                 <div className="relative">
                   <input
                     type="text"
@@ -553,7 +529,6 @@ export default function GeneratePage() {
                     value={formData.model}
                     onChange={handleInputChange}
                     onFocus={() => setIsModelDropdownOpen(true)}
-                    // Delay onBlur sedikit agar klik pada dropdown sempat tereksekusi
                     onBlur={() => setIsModelDropdownOpen(false)}
                     placeholder="Ketik model custom atau pilih..."
                     className="w-full bg-[#02040F] border border-slate-700 text-slate-200 text-sm rounded-lg p-3 outline-none focus:border-[#E59500] transition-colors pr-10"
@@ -566,7 +541,6 @@ export default function GeneratePage() {
                   </div>
                 </div>
 
-                {/* Floating Dropdown */}
                 {isModelDropdownOpen && (
                   <div className="absolute z-50 w-full mt-1 bg-[#0A0E1A] border border-slate-700 rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="max-h-48 overflow-y-auto custom-scrollbar">
@@ -587,7 +561,6 @@ export default function GeneratePage() {
                         </div>
                       ))}
 
-                      {/* Indikator Jika Mengetik Model Custom */}
                       {!PREDEFINED_MODELS.find((m) => m.value === formData.model) &&
                         formData.model.trim() !== "" && (
                           <div className="px-4 py-2.5 text-sm text-emerald-400 bg-emerald-500/10 border-t border-emerald-500/20 italic">
@@ -603,14 +576,12 @@ export default function GeneratePage() {
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between">
                   <span>API Key Model</span>
-                  {/* Peringatan akan muncul jika input kosong */}
                   {formData.model_api_key.trim() === "" && (
                     <span className="text-red-400/80 normal-case italic">*Wajib diisi</span>
                   )}
                 </label>
 
                 <div className="relative">
-                  {/* Ikon Gembok (Sisi Kiri) */}
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
                     <Lock size={16} />
                   </div>
@@ -625,10 +596,9 @@ export default function GeneratePage() {
                     className="w-full bg-[#02040F] border border-slate-700 text-slate-200 pl-10 pr-10 py-2.5 text-sm rounded-lg focus:border-[#E59500] outline-none transition-colors placeholder:text-slate-600"
                   />
 
-                  {/* 🔥 TOGGLER IKON MATA (Sisi Kanan Dalam Input Box) */}
                   <button
                     type="button"
-                    onClick={() => setShowApiKeyModel(!showApiKeyModel)} // Pastikan nama state pembuka selaras
+                    onClick={() => setShowApiKeyModel(!showApiKeyModel)}
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors focus:outline-none"
                   >
                     {showApiKeyModel ? (
@@ -655,13 +625,13 @@ export default function GeneratePage() {
               </div>
             </div>
 
-            {/* TOMBOL EKSEKUSI */}
+            {/* 🔥 DIPERBARUI: Tombol Execute kini aktif jika ada minimal 1 Topik ATAU 1 Kata Kunci */}
             <button
               onClick={() => setIsConfirmOpen(true)}
               disabled={
                 isLoading ||
                 isFetchingTags ||
-                formData.topics.length === 0 ||
+                (formData.topics.length === 0 && formData.keywords.length === 0) ||
                 formData.model_api_key.trim() === ""
               }
               className="mt-8 w-full flex items-center justify-center gap-2 bg-[#E59500] hover:bg-[#E59500]/90 text-[#02040F] font-bold py-3.5 px-4 rounded-xl transition-all shadow-[0_0_15px_rgba(229,149,0,0.3)] hover:shadow-[0_0_25px_rgba(229,149,0,0.5)] disabled:opacity-50 disabled:hover:shadow-none disabled:cursor-not-allowed"
@@ -682,7 +652,7 @@ export default function GeneratePage() {
         </div>
 
         {/* ================= AREA KANAN: RESULT ================= */}
-        <div className="lg:col-span-7 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl flex flex-col min-h-150z">
+        <div className="lg:col-span-7 bg-[#0A0E1A]/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 shadow-xl flex flex-col min-h-150">
           <div className="flex items-center justify-between mb-6 border-b border-slate-700/50 pb-4">
             <div className="flex items-center gap-2">
               <Zap size={20} className="text-purple-400" />
@@ -707,10 +677,8 @@ export default function GeneratePage() {
             )}
           </div>
 
-          {/* Kondisi 1: Sedang Loading */}
           {isLoading && <TerminalMonitor action="generate" progress={progress} logs={logs} />}
 
-          {/* Kondisi 2: State Awal (Belum ada aksi) */}
           {!isLoading && !generateResult && (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-3 opacity-60">
               <FileText size={48} strokeWidth={1} />
@@ -720,7 +688,6 @@ export default function GeneratePage() {
             </div>
           )}
 
-          {/* Kondisi 3: Error */}
           {!isLoading && generateResult?.error && (
             <div className="flex-1 flex flex-col items-center justify-center text-red-400 space-y-3 bg-red-950/10 rounded-xl border border-red-900/30 p-6 text-center">
               <AlertCircle size={40} className="text-red-500 mb-2" />
@@ -729,15 +696,12 @@ export default function GeneratePage() {
             </div>
           )}
 
-          {/* Kondisi  4: Sukses Render Data */}
           {!isLoading &&
             generateResult &&
             !generateResult.error &&
             generateResult.status === "success" && (
               <div className="space-y-6 animate-in slide-in-from-right-4 duration-500 flex-1 flex flex-col">
-                {/* 1. HIGHLIGHT BANNER */}
                 <div className="flex flex-col items-center justify-center py-6 bg-emerald-950/30 rounded-xl border border-emerald-500/20 mb-6 text-center px-4 relative overflow-hidden">
-                  {/* Efek Glow Latar Belakang */}
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-emerald-500/20 blur-[50px] rounded-full pointer-events-none" />
 
                   <CheckCircle2 size={40} className="text-emerald-400 mb-3 relative z-10" />
@@ -749,7 +713,6 @@ export default function GeneratePage() {
                   </p>
                 </div>
 
-                {/* JUDUL ARTIKEL */}
                 <div className="bg-[#002642]/60 p-5 rounded-2xl border border-blue-500/20 shadow-inner flex-1 flex flex-col transition-all">
                   <EditableTitleBox
                     initialTitle={generateResult.data?.title || "Initial Title"}
@@ -757,7 +720,6 @@ export default function GeneratePage() {
                   />
                 </div>
 
-                {/* KONTEN ARTIKEL */}
                 <EditableContentBox
                   initialContent={generateResult.data?.content || "Initial Content"}
                   titleText="Content Article"
@@ -776,9 +738,7 @@ export default function GeneratePage() {
         confirmText="Ya, Eksekusi"
         icon={<Sparkles size={24} />}
       >
-        {/* Kotak Ringkasan Data yang Diinput User */}
         <div className="bg-[#02040F] border border-slate-800 rounded-xl p-4 space-y-4">
-          {/* Baris 1: Model */}
           <div className="flex items-center justify-between border-b border-slate-800/50 pb-3">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
               Model
@@ -788,24 +748,26 @@ export default function GeneratePage() {
             </span>
           </div>
 
-          {/* Baris 2: Topics */}
           <div>
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">
               Topik Terpilih ({formData.topics.length})
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {formData.topics.map((t) => (
-                <span
-                  key={`mod-t-${t}`}
-                  className="bg-blue-500/10 text-blue-300 border border-blue-500/20 px-2.5 py-1 rounded-full text-xs"
-                >
-                  {t}
-                </span>
-              ))}
+              {formData.topics.length > 0 ? (
+                formData.topics.map((t) => (
+                  <span
+                    key={`mod-t-${t}`}
+                    className="bg-blue-500/10 text-blue-300 border border-blue-500/20 px-2.5 py-1 rounded-full text-xs"
+                  >
+                    {t}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-slate-600 italic">Tidak ada topik spesifik</span>
+              )}
             </div>
           </div>
 
-          {/* Baris 3: Keywords */}
           <div>
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">
               Kata Kunci ({formData.keywords.length})
@@ -826,7 +788,6 @@ export default function GeneratePage() {
             </div>
           </div>
 
-          {/* Baris 4: Prompt (Jika Ada) */}
           {formData.prompt_user.trim() !== "" && (
             <div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">
@@ -838,7 +799,6 @@ export default function GeneratePage() {
             </div>
           )}
 
-          {/* BARIS 5: SYSTEM PROMPT & WARNING */}
           <div className="pt-2 border-t border-slate-800/50 mt-4">
             <div className="mb-4 p-3.5 bg-[#840032]/10 border border-[#840032]/30 rounded-lg flex items-start gap-3">
               <AlertTriangle size={20} className="text-red-400 shrink-0 mt-0.5" />
@@ -884,9 +844,6 @@ export default function GeneratePage() {
             </div>
           </div>
 
-          {/* ========================================================= */}
-          {/* BARIS 6: PREVIEW PROMPT UTUH (GABUNGAN) */}
-          {/* ========================================================= */}
           <div className="pt-4 border-t border-slate-800/50 mt-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
@@ -897,12 +854,9 @@ export default function GeneratePage() {
               </span>
             </div>
             
-            {/* Kotak Preview (Scrollable) */}
             <div className="bg-[#02040F]/80 border border-blue-900/30 p-4 rounded-lg text-[11px] text-blue-200/80 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 leading-relaxed shadow-inner">
-              {/* Tampilkan System Prompt Utama */}
               {formData.prompt_system}
               
-              {/* Jika User Prompt tidak kosong, gabungkan dengan penanda khusus */}
               {formData.prompt_user.trim() !== "" && (
                 <span className="text-emerald-300/90">
                   {"\n\nINSTRUKSI KHUSUS DARI PENGGUNA:\n"}
@@ -911,7 +865,6 @@ export default function GeneratePage() {
               )}
             </div>
           </div>
-
         </div>
       </ConfirmationModal>
     </div>
