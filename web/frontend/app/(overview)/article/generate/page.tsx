@@ -342,7 +342,7 @@ export default function GeneratePage() {
                   })}
                   
                   {/* 🔥 DIPERBARUI: Input Teks Manual Topik dengan Tombol Tambah */}
-                  <div className="flex-1 flex items-center min-w-[150px] gap-1">
+                  <div className="flex-1 flex items-center min-w-37.5 gap-1">
                     <input
                       type="text"
                       value={topicInputValue}
@@ -462,7 +462,7 @@ export default function GeneratePage() {
                   ))}
                   
                   {/* 🔥 DIPERBARUI: Input Teks Manual Keyword yang Selalu Aktif & Punya Tombol Tambah */}
-                  <div className="flex-1 flex items-center min-w-[150px] gap-1">
+                  <div className="flex-1 flex items-center min-w-37.5 gap-1">
                     <input
                       type="text"
                       value={keywordInputValue}
