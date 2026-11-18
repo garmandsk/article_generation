@@ -141,11 +141,31 @@ def health_check():
 @app.post("/api/v1/auth/login")
 # payload
 def login_app(payload: LoginCredentials, response: Response):
-    login_response = login_mydigilearn(payload.username, payload.password)
-    if login_response["status_code"] != 200:
-        raise HTTPException(
-            status_code=401, detail="Login mydigilearn gagal, token gagal diambil"
+    is_admin = (
+        payload.username == settings.ADMIN_USERNAME
+        and payload.password == settings.ADMIN_PASSWORD
+    )
+
+    mydigilearn_token = None
+
+    if not is_admin:
+        login_response = login_mydigilearn(
+            payload.username,
+            payload.password,
         )
+
+        if login_response.get("status_code") != 200:
+            raise HTTPException(
+                status_code=401,
+                detail="Login MyDigiLearn gagal, token gagal diambil",
+            )
+
+        mydigilearn_token = login_response.get("token")
+        if not mydigilearn_token:
+            raise HTTPException(
+                status_code=401,
+                detail="Token MyDigiLearn tidak ditemukan",
+            )
 
     agc_token = create_access_token({"sub": payload.username})
     mydigilearn_token = login_response["token"]
