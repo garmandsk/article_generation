@@ -64,6 +64,10 @@ MODEL_EMBEDDING_NAME = os.getenv("MODEL_EMBEDDING_NAME")
 MYDIGILEARN_TOKEN_NAME = os.getenv("MYDIGILEARN_TOKEN_NAME")
 AGC_TOKEN_NAME = os.getenv("AGC_TOKEN_NAME")
 
+# Admin Credentials
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
 BASE_HEADERS = {
     "accept": "application/json, text/plain, */*",
     "dnt": "1",
